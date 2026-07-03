@@ -1,0 +1,137 @@
+================================================================================
+技术术语一览（Technology Glossary）
+================================================================================
+
+【架构与设计】
+  多层架构（N-Tier / Layered Architecture）
+  领域驱动设计（DDD, Domain-Driven Design）
+  整洁架构（Clean Architecture）
+  洋葱架构（Onion Architecture）
+  仓储模式（Repository Pattern）
+  工作单元（Unit of Work, UoW）
+  依赖倒置（Dependency Inversion）
+  面向接口编程（Interface-Oriented Programming）
+  CQRS（命令查询职责分离）
+  中介者模式（MediatR）
+  领域事件（Domain Events）
+  应用服务 / 领域服务 / 基础设施层
+
+【Web 与 API】
+  ASP.NET Core
+  Minimal API
+  MVC / Web API
+  中间件（Middleware）
+  过滤器（Filter）：Authorization / Action / Exception / Result
+  路由（Routing）
+  模型绑定（Model Binding）
+  模型验证（Data Annotations / FluentValidation）
+  RESTful API
+  Swagger / OpenAPI
+  JWT（JSON Web Token）
+  OAuth 2.0 / OpenID Connect
+  CORS
+  健康检查（Health Checks）
+  全局异常处理
+  统一 API 响应格式
+
+【依赖注入与 IoC】
+  依赖注入（DI, Dependency Injection）
+  控制反转（IoC, Inversion of Control）
+  服务生命周期：Singleton / Scoped / Transient
+  构造函数注入 / 属性注入 / 方法注入
+  IServiceCollection / IServiceProvider
+  选项模式（Options Pattern, IOptions<T>）
+  工厂模式与 DI 结合
+  装饰器模式（Decorator）与 DI
+  模块化注册（Autofac / Scrutor 等扩展）
+
+【ORM 与数据库 — SqlSugar 专题】
+  SqlSugar
+  Code First / Db First
+  实体映射与特性（SugarTable / SugarColumn）
+  多库 / 多租户（Tenant）
+  读写分离
+  分表（Split Table）
+  软删除 / 乐观锁 / 版本号
+  导航属性与联表查询
+  表达式树查询（Queryable）
+  事务（Ado / UseTran）
+  批量操作（Insertable / Updateable / Deleteable）
+  存储过程 / 原生 SQL
+  AOP 拦截（SQL 日志、慢查询、缓存）
+  SqlSugarScope / 连接池
+  雪花 ID / 自增 ID
+  数据库迁移与初始化
+
+【缓存 — Redis】
+  Redis
+  分布式缓存（IDistributedCache）
+  StackExchange.Redis
+  字符串 / 哈希 / 列表 / 集合 / 有序集合
+  缓存穿透 / 缓存击穿 / 缓存雪崩
+  缓存过期策略（TTL / 滑动过期）
+  分布式锁（RedLock / SET NX EX）
+  发布订阅（Pub/Sub）
+  缓存与数据库一致性
+  缓存预热 / 缓存淘汰
+
+【消息队列 — MQ】
+  消息队列（MQ, Message Queue）
+  生产者 / 消费者 / Broker
+  点对点（Queue）与发布订阅（Topic）
+  RabbitMQ（Exchange / Routing Key / Dead Letter）
+  Apache Kafka（Partition / Consumer Group / Offset）
+  消息可靠性：确认机制 / 重试 / 幂等
+  延迟队列 / 死信队列（DLQ）
+  事件驱动架构（EDA）
+  MassTransit / CAP 等 .NET 集成框架
+  Outbox 模式（事务与消息一致性）
+
+【安全与加密】
+  对称加密（Symmetric Encryption）：AES / DES / 3DES
+  非对称加密（Asymmetric Encryption）：RSA / ECC
+  哈希算法（Hash）：MD5 / SHA-256 / SHA-512 / HMAC
+  数字签名（Digital Signature）
+  加盐（Salt）与密钥派生（PBKDF2 / BCrypt / Argon2）
+  HTTPS / TLS
+  数据脱敏
+  防重放攻击（Nonce / Timestamp）
+  JWT 签名与验签
+  证书（X.509）与密钥管理
+
+【日志、监控与可观测性】
+  Serilog / NLog / ILogger
+  结构化日志
+  链路追踪（OpenTelemetry / Activity）
+  指标（Metrics）与 Prometheus
+  APM（Application Performance Monitoring）
+
+【配置与部署】
+  appsettings.json / 环境变量 / 用户机密（User Secrets）
+  配置热更新
+  Docker / Docker Compose
+  CI/CD
+  多环境配置（Development / Staging / Production）
+
+【其他常用 .NET 技术】
+  Entity Framework Core（EF Core）
+  AutoMapper / Mapster（对象映射）
+  Polly（重试、熔断、超时）
+  Hangfire / Quartz.NET（定时任务）
+  SignalR（实时通信）
+  gRPC
+  BackgroundService / IHostedService
+  Channel（System.Threading.Channels）
+  异步编程（async / await / Task / ValueTask）
+  LINQ
+  反射与表达式树
+  Source Generator
+  单元测试（xUnit / NUnit / Moq）
+  集成测试（WebApplicationFactory）
+
+================================================================================
+解决方案概述
+================================================================================
+
+本解决方案用于再次熟悉 .NET 生态中的各类技术与最佳实践，通过可运行的示例项目
+逐一演练上述术语对应的实际用法。

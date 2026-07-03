@@ -1,0 +1,84 @@
+################################################################################
+# .NET / Visual Studio / Rider baseline
+################################################################################
+
+# Build outputs
+**/bin/
+**/obj/
+**/[Bb]uild/
+**/[Dd]ebug*/
+**/[Rr]elease*/
+**/x64/
+**/x86/
+**/ARM/
+**/ARM64/
+
+# Test results / coverage
+**/TestResults/
+**/*.trx
+**/*.coverage
+**/*.coveragexml
+**/coverage*/
+**/.coverlet/
+
+# NuGet
+**/packages/
+**/*.nupkg
+**/*.snupkg
+**/nuget.config.local
+
+# MSBuild / project user-specific
+**/*.user
+**/*.rsuser
+**/*.suo
+**/*.userosscache
+**/*.sln.docstates
+
+# VS / VS Code / IDE caches
+.vs/
+**/.vs/
+.vscode/
+.idea/
+*.sln.iml
+
+# Rider / JetBrains
+**/.idea/
+**/*.sln.DotSettings.user
+**/_ReSharper*/
+**/ReSharperTestRunner*
+**/.resharper/
+
+# DotNet tooling artifacts
+**/.dotnet/
+**/.tools/
+**/.config/dotnet-tools.json.user
+
+# Logs
+**/*.log
+
+################################################################################
+# ASP.NET Core / Hosting
+################################################################################
+# Local HTTPS dev certs and secrets are NOT files here; but ignore common local-only
+**/appsettings.*.local.json
+**/appsettings.Local.json
+**/appsettings.local.json
+
+# Publish output
+**/publish/
+**/PublishProfiles/
+# If you use publish profiles and want to keep them, delete the line above.
+
+################################################################################
+# OS
+################################################################################
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+################################################################################
+# Optional: ignore environment files (enable if you have them)
+################################################################################
+# .env
+# .env.*
