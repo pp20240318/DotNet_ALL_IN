@@ -1,0 +1,172 @@
+================================================================================
+手表商城管理后台 — 学习路线图
+WatchShop Admin Backend — Learning Roadmap
+================================================================================
+
+项目路径：E:\99Test\c#\DotNet_ALL_IN
+解决方案：WatchShop.slnx
+数据库：  MySQL dotnet_all_in1（用户 dotnet_all_in2）
+
+架构路线：分层 + Repository/UoW 起步 → 后续可演进 Clean Architecture / DDD / CQRS
+ORM：     SqlSugar
+目标框架：net8.0
+
+================================================================================
+文档索引
+================================================================================
+
+  00-Roadmap.txt                    ← 本文件，总路线图与进度
+  Overview.txt                      ← 技术术语索引（参考用）
+  01-项目骨架与环境.txt
+  02-SqlSugar接入与数据库连通.txt
+  03-依赖注入与分层边界.txt
+  04-统一API响应与全局异常.txt
+  05-Options模式与配置管理.txt
+  06-管理员认证与JWT.txt
+  07-领域实体与CodeFirst.txt
+  08-Repository与UnitOfWork.txt
+  09-品牌与分类管理.txt
+  10-商品管理CRUD.txt
+  11-SKU与库存管理.txt
+  12-订单管理后台.txt
+  13-软删除乐观锁与分页.txt
+  14-Redis缓存.txt
+  15-操作日志与Serilog.txt
+  16-消息队列与事件驱动.txt
+  17-定时任务与BackgroundService.txt
+  18-健康检查与可观测性.txt
+  19-单元测试与集成测试.txt
+  20-Docker部署与多环境.txt
+
+================================================================================
+进度追踪（完成后在 [ ] 中打 x）
+================================================================================
+
+── 阶段 A：地基 ──────────────────────────────────────────
+[✅] 01  项目骨架与环境
+[✅] 02  SqlSugar 接入与数据库连通
+[  ] 03  依赖注入与分层边界                  ← 当前
+[  ] 04  统一 API 响应与全局异常
+[  ] 05  Options 模式与配置管理
+
+── 阶段 B：认证与数据层 ──────────────────────────────────
+[  ] 06  管理员认证与 JWT
+[  ] 07  领域实体与 Code First
+[  ] 08  Repository 与 UnitOfWork
+
+── 阶段 C：管理后台核心业务 ──────────────────────────────
+[  ] 09  品牌与分类管理
+[  ] 10  商品管理 CRUD
+[  ] 11  SKU 与库存管理
+[  ] 12  订单管理后台
+[  ] 13  软删除、乐观锁与分页
+
+── 阶段 D：进阶能力 ──────────────────────────────────────
+[  ] 14  Redis 缓存
+[  ] 15  操作日志与 Serilog
+[  ] 16  消息队列与事件驱动
+[  ] 17  定时任务与 BackgroundService
+[  ] 18  健康检查与可观测性
+
+── 阶段 E：质量与部署 ────────────────────────────────────
+[  ] 19  单元测试与集成测试
+[  ] 20  Docker 部署与多环境
+
+── 演进预留（主线完成后可选）────────────────────────────
+[  ] 21  Clean Architecture 边界重构
+[  ] 22  CQRS + MediatR 引入
+[  ] 23  C 端商城 Store.Api
+
+================================================================================
+各步骤概要
+================================================================================
+
+01  项目骨架与环境
+    创建 4 层项目、配置引用、Swagger 跑通
+    技术：ASP.NET Core、多层架构、Swagger/OpenAPI
+
+02  SqlSugar 接入与数据库连通
+    DI 注册 SqlSugar，GET /health/db 返回 MySQL 版本号
+    技术：SqlSugar、DI、SqlSugarScope、连接池
+
+03  依赖注入与分层边界
+    接口定义在 Application，实现在 Infrastructure
+    技术：DI、IoC、依赖倒置、面向接口编程、服务生命周期
+
+04  统一 API 响应与全局异常
+    所有接口返回 { code, message, data }，异常统一捕获
+    技术：Middleware、全局异常处理、RESTful API
+
+05  Options 模式与配置管理
+    连接字符串、JWT 等配置用 IOptions<T> 读取
+    技术：Options Pattern、appsettings、User Secrets
+
+06  管理员认证与 JWT
+    管理员登录、Token 签发、接口鉴权
+    技术：JWT、Authorization Filter、哈希加盐（密码存储）
+
+07  领域实体与 Code First
+    建表：Admin、Brand、Category、Product
+    技术：Code First、SugarTable/SugarColumn、雪花 ID
+
+08  Repository 与 UnitOfWork
+    通用仓储接口 + 实现，事务封装
+    技术：Repository Pattern、Unit of Work、UseTran
+
+09  品牌与分类管理
+    品牌/分类 CRUD API（Rolex、Omega / 机械表、石英表…）
+    技术：RESTful、模型绑定、Data Annotations / FluentValidation
+
+10  商品管理 CRUD
+    商品增删改查、上下架
+    技术：DTO、AutoMapper/Mapster、模型验证
+
+11  SKU 与库存管理
+    多规格 SKU（表盘颜色、表带材质）、入库/出库
+    技术：批量操作、事务、表达式树查询
+
+12  订单管理后台
+    订单列表、详情、发货/取消/退款
+    技术：联表查询、状态流转
+
+13  软删除、乐观锁与分页
+    全局软删除过滤、并发控制、分页查询
+    技术：软删除、乐观锁/版本号、Queryable
+
+14  Redis 缓存
+    商品详情缓存、防穿透/击穿、分布式锁
+    技术：Redis、IDistributedCache、StackExchange.Redis
+
+15  操作日志与 Serilog
+    管理员操作审计、结构化日志
+    技术：Serilog、ILogger、结构化日志
+
+16  消息队列与事件驱动
+    下单发 MQ、延迟关单、死信队列
+    技术：RabbitMQ/CAP、Outbox、EDA
+
+17  定时任务与 BackgroundService
+    超时未支付自动取消、定时同步
+    技术：BackgroundService、IHostedService、Hangfire/Quartz
+
+18  健康检查与可观测性
+    /health 端点、链路追踪
+    技术：Health Checks、OpenTelemetry、Activity
+
+19  单元测试与集成测试
+    Service 单测、API 集成测试
+    技术：xUnit、Moq、WebApplicationFactory
+
+20  Docker 部署与多环境
+    容器化、Development/Staging/Production 配置分离
+    技术：Docker、Docker Compose、多环境配置
+
+================================================================================
+工作约定
+================================================================================
+
+  1. 每步完成后，确认验收通过，再生成对应步骤文档（doc/XX-*.txt）
+  2. 代码由学习者自行编写/复制，步骤文档提供目标、步骤指引与验收标准
+  3. 详细技术术语见 Overview.txt
+
+================================================================================

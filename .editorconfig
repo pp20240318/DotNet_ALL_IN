@@ -1,0 +1,6 @@
+root = true
+
+[*.cs]
+# block_scoped = 块作用域 { }（和你现在一样）
+# file_scoped = 文件作用域 namespace X;
+csharp_style_namespace_declarations = block_scoped:suggestion

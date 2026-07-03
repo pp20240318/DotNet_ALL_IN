@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/WatchShop.Admin.Api/WatchShop.Admin.Api.csproj" />
+    <Project Path="src/WatchShop.Application/WatchShop.Application.csproj" />
+    <Project Path="src/WatchShop.Domain/WatchShop.Domain.csproj" />
+    <Project Path="src/WatchShop.Infrastructure/WatchShop.Infrastructure.csproj" Id="cab52001-eaa9-49bd-9053-e09653975400" />
+  </Folder>
+</Solution>

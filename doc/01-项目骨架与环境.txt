@@ -1,0 +1,224 @@
+================================================================================
+步骤 01：项目骨架与环境
+================================================================================
+前置条件：已安装 .NET SDK（本机为 10.0.300，项目目标框架 net8.0）
+预计耗时：30 ~ 60 分钟
+完成日期：2026-07-03
+
+【验收标准】
+  [✅] 解决方案 WatchShop.slnx 包含 4 个项目
+  [✅] 4 层项目引用关系正确
+  [✅] dotnet build 编译通过
+  [✅] dotnet run 后 Swagger 可访问
+  [✅] MySQL 连接字符串已写入 appsettings.json
+  [✅] Infrastructure 已安装 SqlSugarCore、MySqlConnector（供步骤 02 使用）
+
+================================================================================
+【本步体验的技术点】（详见 Overview.txt）
+================================================================================
+
+  - ASP.NET Core
+  - 多层架构（N-Tier / Layered Architecture）
+  - Swagger / OpenAPI
+  - 依赖注入（DI）— 模板自带，步骤 03 深入
+  - appsettings.json 配置
+
+================================================================================
+【业务目标】
+================================================================================
+
+  为「手表商城管理后台」搭建可编译、可运行、可扩展的分层项目骨架。
+  本步不涉及业务逻辑，只把「地基」打好，后续步骤在此基础上逐层叠加。
+
+================================================================================
+【最终目录结构】
+================================================================================
+
+  DotNet_ALL_IN/
+  ├── WatchShop.slnx                 ← 解决方案（.NET 10 SDK 生成 slnx 格式）
+  ├── doc/
+  │   ├── Overview.txt
+  │   ├── 00-Roadmap.txt
+  │   └── 01-项目骨架与环境.txt      ← 本文件
+  └── src/
+      ├── WatchShop.Admin.Api        ← Web API 入口（管理后台）
+      ├── WatchShop.Application      ← 应用层（接口、DTO、应用服务）
+      ├── WatchShop.Domain           ← 领域层（实体、枚举、领域规则）
+      └── WatchShop.Infrastructure   ← 基础设施层（SqlSugar、Repository 实现）
+
+================================================================================
+【操作步骤】
+================================================================================
+
+── 1. 确认 SDK ──────────────────────────────────────────
+
+  在项目根目录执行：
+
+    dotnet --info
+
+  确认 SDK 版本可用；本项目锁定 TargetFramework 为 net8.0（生态最成熟）。
+
+── 2. 创建解决方案 ────────────────────────────────────
+
+  在项目根目录 E:\99Test\c#\DotNet_ALL_IN 执行：
+
+    mkdir src
+    dotnet new sln -n WatchShop
+
+  说明：.NET SDK 10 默认生成 WatchShop.slnx（非 .sln），VS 2022 可正常打开。
+
+── 3. 创建 4 层项目 ───────────────────────────────────
+
+  执行：
+
+    cd src
+    dotnet new webapi -n WatchShop.Admin.Api -f net8.0
+    dotnet new classlib -n WatchShop.Application -f net8.0
+    dotnet new classlib -n WatchShop.Domain -f net8.0
+    dotnet new classlib -n WatchShop.Infrastructure -f net8.0
+    cd ..
+
+── 4. 将项目加入解决方案 ──────────────────────────────
+
+  执行：
+
+    dotnet sln .\WatchShop.slnx add .\src\WatchShop.Admin.Api\WatchShop.Admin.Api.csproj
+    dotnet sln .\WatchShop.slnx add .\src\WatchShop.Application\WatchShop.Application.csproj
+    dotnet sln .\WatchShop.slnx add .\src\WatchShop.Domain\WatchShop.Domain.csproj
+    dotnet sln .\WatchShop.slnx add .\src\WatchShop.Infrastructure\WatchShop.Infrastructure.csproj
+
+  VS 中可能显示为「解决方案 → src 文件夹 → 各项目」，这是 slnx 的 Folder 分组，正常。
+
+── 5. 配置项目引用（分层依赖）────────────────────────
+
+  依赖方向：
+
+    Admin.Api  →  Application  →  Domain
+                    ↑
+    Infrastructure ─┘
+
+  Admin.Api 还需引用 Infrastructure（启动时注册 DI 扩展方法）。
+
+  执行：
+
+    dotnet add .\src\WatchShop.Admin.Api\WatchShop.Admin.Api.csproj reference .\src\WatchShop.Application\WatchShop.Application.csproj
+    dotnet add .\src\WatchShop.Admin.Api\WatchShop.Admin.Api.csproj reference .\src\WatchShop.Infrastructure\WatchShop.Infrastructure.csproj
+    dotnet add .\src\WatchShop.Application\WatchShop.Application.csproj reference .\src\WatchShop.Domain\WatchShop.Domain.csproj
+    dotnet add .\src\WatchShop.Infrastructure\WatchShop.Infrastructure.csproj reference .\src\WatchShop.Application\WatchShop.Application.csproj
+
+── 6. 安装 NuGet 包（Infrastructure）──────────────────
+
+  执行：
+
+    dotnet add .\src\WatchShop.Infrastructure\WatchShop.Infrastructure.csproj package SqlSugarCore
+    dotnet add .\src\WatchShop.Infrastructure\WatchShop.Infrastructure.csproj package MySqlConnector
+
+  说明：包在本步安装，实际注册与使用在步骤 02。
+
+── 7. 配置 MySQL 连接字符串 ───────────────────────────
+
+  编辑 src\WatchShop.Admin.Api\appsettings.json，添加 ConnectionStrings 节点：
+
+    {
+      "ConnectionStrings": {
+        "Default": "Server=localhost;Port=3306;Database=dotnet_all_in1;User=dotnet_all_in2;Password=dotnet_all_in3;SslMode=None;"
+      },
+      ...
+    }
+
+  若 MySQL 不在本机或端口不同，修改 Server / Port。
+
+── 8. 编译与运行 ──────────────────────────────────────
+
+  执行：
+
+    dotnet build .\WatchShop.slnx
+    dotnet run --project .\src\WatchShop.Admin.Api\WatchShop.Admin.Api.csproj
+
+  浏览器打开 Swagger（默认 http://localhost:5234/swagger）。
+  模板自带 WeatherForecast 接口，调用 GET /WeatherForecast 应返回 JSON 数据。
+
+================================================================================
+【各层职责说明】
+================================================================================
+
+  WatchShop.Admin.Api
+    - HTTP 入口：Controller、Middleware、Swagger
+    - 引用 Application（调用应用服务）和 Infrastructure（注册 DI）
+    - 不应包含业务逻辑或直接访问数据库
+
+  WatchShop.Application
+    - 应用服务接口、DTO、用例编排
+    - 引用 Domain，不引用 Infrastructure
+    - 步骤 08 在此定义 IRepository、IUnitOfWork 等接口
+
+  WatchShop.Domain
+    - 实体（Entity）、枚举、值对象、领域规则
+    - 不引用任何其他项目层，保持纯净
+    - 步骤 07 在此定义 Brand、Product 等实体
+
+  WatchShop.Infrastructure
+    - SqlSugar 配置、Repository 实现、外部服务集成
+    - 引用 Application（实现其接口）
+    - 步骤 02 在此注册 SqlSugar，步骤 08 在此实现 Repository
+
+================================================================================
+【关键配置参考】
+================================================================================
+
+  Admin.Api 目标框架（WatchShop.Admin.Api.csproj）：
+    <TargetFramework>net8.0</TargetFramework>
+
+  Admin.Api 项目引用：
+    WatchShop.Application
+    WatchShop.Infrastructure
+
+  Infrastructure NuGet 包：
+    SqlSugarCore
+    MySqlConnector
+
+  launchSettings.json 默认启动：
+    launchUrl: swagger
+    applicationUrl: http://localhost:5234
+
+================================================================================
+【常见问题】
+================================================================================
+
+  Q: VS 里项目在 src 文件夹下，不是直接在解决方案根下？
+  A: slnx 用 Folder 分组，与磁盘 src\ 目录对应，功能无差异，可忽略。
+
+  Q: dotnet new sln 生成的是 .slnx 不是 .sln？
+  A: .NET SDK 10 新格式，VS 2022 支持；dotnet sln / dotnet build 均可用。
+
+  Q: 为什么 Admin.Api 要引用 Infrastructure？
+  A: 启动项目需要在 Program.cs 调用 Infrastructure 的扩展方法（如 AddInfrastructure），
+     注册 SqlSugar、Repository 等到 DI 容器。Application 层只定义接口，不含实现。
+
+  Q: Class1.cs 和 WeatherForecast 是什么？
+  A: dotnet new 模板自动生成的占位代码，后续步骤中删除即可，不影响本步验收。
+
+  Q: 连接字符串放 appsettings.json 还是 Development.json？
+  A: 开发阶段放 appsettings.json 或 Development.json 均可；生产环境应使用
+     环境变量或 User Secrets，步骤 05 会涉及 Options 模式与配置管理。
+
+================================================================================
+【本步未涉及（留给后续步骤）】
+================================================================================
+
+  - SqlSugar DI 注册与数据库连通验证        → 步骤 02
+  - 接口与实现分层、AddInfrastructure 扩展  → 步骤 03
+  - 统一 API 响应格式、全局异常处理          → 步骤 04
+  - IOptions<T> 读取配置                    → 步骤 05
+
+================================================================================
+【下一步】
+================================================================================
+
+  → 步骤 02：SqlSugar 接入与数据库连通
+    目标：在 Infrastructure 注册 SqlSugar 到 DI，实现 GET /health/db 返回 MySQL 版本号
+    技术：SqlSugar、DI、SqlSugarScope
+
+  完成步骤 02 并验收通过后，确认再生成 doc/02-SqlSugar接入与数据库连通.txt
+
+================================================================================
