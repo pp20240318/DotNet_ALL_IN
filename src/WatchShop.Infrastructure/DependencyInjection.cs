@@ -1,6 +1,8 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using SqlSugar;
-using Microsoft.Extensions.Configuration;
+using WatchShop.Application.Abstractions;
+using WatchShop.Infrastructure.Services;
 
 namespace WatchShop.Infrastructure;
 
@@ -12,7 +14,7 @@ public static class DependencyInjection
     {
         var connectionString = configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Connection string 'Default' not found.");
-
+        // Singleton：SqlSugarScope 线程安全，全局一个实例
         services.AddSingleton<ISqlSugarClient>(_ =>
         {
             return new SqlSugarScope(new ConnectionConfig
@@ -24,14 +26,14 @@ public static class DependencyInjection
             },
             db =>
             {
-                // 开发阶段可开 SQL 日志，对应 Overview 里的 AOP 拦截
                 db.Aop.OnLogExecuting = (sql, pars) =>
                 {
                     Console.WriteLine($"[SqlSugar] {sql}");
                 };
             });
         });
-
+        // Scoped：每个 HTTP 请求一个实例（常规业务 Service 用这个）
+        services.AddScoped<IDatabaseHealthService, DatabaseHealthService>();
         return services;
     }
 }

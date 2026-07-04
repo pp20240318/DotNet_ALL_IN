@@ -1,29 +1,28 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SqlSugar;
+using WatchShop.Application.Abstractions;
 
-namespace WatchShop.Admin.Api.Controllers
+namespace WatchShop.Admin.Api.Controllers;
+
+
+[ApiController]
+[Route("health")]
+public class HealthController : ControllerBase
 {
-    [ApiController]
-    [Route("health")]
-    public class HealthController : ControllerBase
+    private readonly IDatabaseHealthService _healthService;
+    public HealthController(IDatabaseHealthService healthService)
     {
-        private readonly ISqlSugarClient _db;
-
-        public HealthController(ISqlSugarClient db)
+        _healthService = healthService;
+    }
+    [HttpGet("db")]
+    public async Task<IActionResult> CheckDatabase()
+    {
+        var version = await _healthService.GetMySqlVersionAsync();
+        return Ok(new
         {
-            _db = db;
-        }
-
-        [HttpGet("db")]
-        public async Task<IActionResult> CheckDatabase()
-        {
-            var version = await _db.Ado.GetStringAsync("SELECT VERSION()");
-            return Ok(new
-            {
-                status = "ok",
-                database = "dotnet_all_in1",
-                mysqlVersion = version
-            });
-        }
+            status = "ok",
+            database = "dotnet_all_in1",
+            mysqlVersion = version
+        });
     }
 }

@@ -1,0 +1,316 @@
+================================================================================
+步骤 03：依赖注入与分层边界
+================================================================================
+前置条件：完成步骤 02（SqlSugar 已注册，GET /health/db 可用）
+预计耗时：30 ~ 60 分钟
+完成日期：2026-07-04
+
+【验收标准】
+  [✅] IDatabaseHealthService 定义在 Application 层
+  [✅] DatabaseHealthService 实现在 Infrastructure 层
+  [✅] DependencyInjection 注册 AddScoped<IDatabaseHealthService, DatabaseHealthService>
+  [✅] HealthController 注入 IDatabaseHealthService，不再直接使用 ISqlSugarClient
+  [✅] dotnet build 编译通过
+  [✅] GET /health/db 仍返回 MySQL 版本号
+
+================================================================================
+【本步体验的技术点】（详见 Overview.txt）
+================================================================================
+
+  - 依赖注入（DI, Dependency Injection）
+  - 控制反转（IoC, Inversion of Control）
+  - 依赖倒置（Dependency Inversion）
+  - 面向接口编程（Interface-Oriented Programming）
+  - 构造函数注入
+  - 服务生命周期：Singleton / Scoped / Transient
+  - IServiceCollection 扩展方法注册
+
+================================================================================
+【业务目标】
+================================================================================
+
+  将步骤 02 中「Controller 直接依赖 SqlSugar」重构为「Controller 只依赖
+  Application 接口，Infrastructure 提供实现」，建立清晰的分层边界。
+  后续所有业务 Service、Repository 都按此模式扩展。
+
+================================================================================
+【步骤 02 → 03 的变化】
+================================================================================
+
+  步骤 02（改造前）：
+    HealthController → ISqlSugarClient（SqlSugar 第三方库，Api 层直接绑定 ORM）
+
+  步骤 03（改造后）：
+    HealthController → IDatabaseHealthService（Application 接口）
+                            ↑
+                  DatabaseHealthService（Infrastructure 实现）
+                            ↓
+                      ISqlSugarClient（SqlSugar 只在 Infrastructure 内部）
+
+================================================================================
+【本步涉及的文件】
+================================================================================
+
+  新建：
+    src/WatchShop.Application/Abstractions/IDatabaseHealthService.cs
+    src/WatchShop.Infrastructure/Services/DatabaseHealthService.cs
+
+  修改：
+    src/WatchShop.Infrastructure/DependencyInjection.cs
+    src/WatchShop.Admin.Api/Controllers/HealthController.cs
+
+  可选清理：
+    src/WatchShop.Application/Class1.cs（模板占位）
+    HealthController 中多余的 using SqlSugar;
+
+================================================================================
+【操作步骤与参考代码】
+================================================================================
+
+── 1. Application 层定义接口 ───────────────────────────
+
+  新建 Abstractions/IDatabaseHealthService.cs
+  原则：只描述「做什么」，不引用 SqlSugar、Infrastructure。
+
+  --- 参考代码 ---
+
+  namespace WatchShop.Application.Abstractions;
+
+  /// <summary>
+  /// 数据库健康检查服务（Application 层接口，不含 SqlSugar 依赖）
+  /// </summary>
+  public interface IDatabaseHealthService
+  {
+      /// <summary>
+      /// 获取 MySQL 版本号，用于验证数据库连通性
+      /// </summary>
+      Task<string> GetMySqlVersionAsync();
+  }
+
+── 2. Infrastructure 层写实现 ──────────────────────────
+
+  新建 Services/DatabaseHealthService.cs
+  原则：SqlSugar 细节全部封装在此层。
+
+  --- 参考代码 ---
+
+  using SqlSugar;
+  using WatchShop.Application.Abstractions;
+
+  namespace WatchShop.Infrastructure.Services;
+
+  /// <summary>
+  /// 数据库健康检查实现（SqlSugar 细节封装在此层）
+  /// </summary>
+  public class DatabaseHealthService : IDatabaseHealthService
+  {
+      private readonly ISqlSugarClient _db;
+
+      // 构造函数注入：DI 容器自动传入 ISqlSugarClient
+      public DatabaseHealthService(ISqlSugarClient db)
+      {
+          _db = db;
+      }
+
+      public async Task<string> GetMySqlVersionAsync()
+      {
+          return await _db.Ado.GetStringAsync("SELECT VERSION()");
+      }
+  }
+
+── 3. DependencyInjection 注册接口 → 实现 ──────────────
+
+  在 AddSingleton<ISqlSugarClient> 之后添加 Scoped 注册。
+
+  --- 参考代码（DependencyInjection.cs 完整） ---
+
+  using Microsoft.Extensions.Configuration;
+  using Microsoft.Extensions.DependencyInjection;
+  using SqlSugar;
+  using WatchShop.Application.Abstractions;
+  using WatchShop.Infrastructure.Services;
+
+  namespace WatchShop.Infrastructure;
+
+  public static class DependencyInjection
+  {
+      public static IServiceCollection AddInfrastructure(
+          this IServiceCollection services,
+          IConfiguration configuration)
+      {
+          var connectionString = configuration.GetConnectionString("Default")
+              ?? throw new InvalidOperationException("Connection string 'Default' not found.");
+
+          // Singleton：SqlSugarScope 线程安全，全局一个实例
+          services.AddSingleton<ISqlSugarClient>(_ =>
+          {
+              return new SqlSugarScope(new ConnectionConfig
+              {
+                  ConnectionString = connectionString,
+                  DbType = DbType.MySql,
+                  IsAutoCloseConnection = true,
+                  InitKeyType = InitKeyType.Attribute
+              },
+              db =>
+              {
+                  db.Aop.OnLogExecuting = (sql, pars) =>
+                  {
+                      Console.WriteLine($"[SqlSugar] {sql}");
+                  };
+              });
+          });
+
+          // Scoped：每个 HTTP 请求一个实例（常规业务 Service 用这个）
+          services.AddScoped<IDatabaseHealthService, DatabaseHealthService>();
+
+          return services;
+      }
+  }
+
+── 4. 修改 HealthController ────────────────────────────
+
+  去掉 using SqlSugar;，改为注入 Application 接口。
+
+  --- 参考代码 ---
+
+  using Microsoft.AspNetCore.Mvc;
+  using WatchShop.Application.Abstractions;
+
+  namespace WatchShop.Admin.Api.Controllers;
+
+  [ApiController]
+  [Route("health")]
+  public class HealthController : ControllerBase
+  {
+      private readonly IDatabaseHealthService _healthService;
+
+      public HealthController(IDatabaseHealthService healthService)
+      {
+          _healthService = healthService;
+      }
+
+      [HttpGet("db")]
+      public async Task<IActionResult> CheckDatabase()
+      {
+          var version = await _healthService.GetMySqlVersionAsync();
+          return Ok(new
+          {
+              status = "ok",
+              database = "dotnet_all_in1",
+              mysqlVersion = version
+          });
+      }
+  }
+
+── 5. 编译运行验收 ─────────────────────────────────────
+
+    dotnet build .\WatchShop.slnx
+    dotnet run --project .\src\WatchShop.Admin.Api\WatchShop.Admin.Api.csproj
+
+  Swagger 调用 GET /health/db，返回应与步骤 02 相同。
+
+================================================================================
+【三种 DI 生命周期】
+================================================================================
+
+  Singleton（单例）
+    - 整个应用进程内只有一个实例
+    - 适用：SqlSugarScope、配置、缓存客户端、连接池
+    - 本步：ISqlSugarClient 用 Singleton
+
+  Scoped（作用域）
+    - 每个 HTTP 请求创建一个实例，请求结束销毁
+    - 适用：业务 Service、Repository（步骤 08 会用）
+    - 本步：IDatabaseHealthService 用 Scoped
+
+  Transient（瞬态）
+    - 每次注入（每次 Resolve）都 new 一个新实例
+    - 适用：轻量、无状态的 helper 类
+    - 本步：暂未使用
+
+  记忆口诀：
+    Singleton → 连接池、全局共享资源
+    Scoped    → 业务逻辑、数据访问（跟请求走）
+    Transient → 一次性小工具
+
+================================================================================
+【各层职责与边界】
+================================================================================
+
+  Admin.Api
+    - Controller 调用 Application 接口
+    - 不能：引用 SqlSugar、直接访问数据库
+
+  Application
+    - 定义接口（Abstractions）、DTO、应用服务
+    - 不能：引用 Infrastructure、SqlSugar
+
+  Infrastructure
+    - 实现 Application 接口、注册 DI、操作数据库
+    - 不能：引用 Admin.Api
+
+  Domain
+    - 实体、枚举、领域规则（本步暂未涉及）
+    - 不能：引用任何其他层
+
+  依赖方向：
+    Admin.Api → Application → Domain
+    Infrastructure → Application → Domain
+
+================================================================================
+【DI 工作流程示意】
+================================================================================
+
+  1. 请求到达 GET /health/db
+  2. ASP.NET Core 创建 HealthController
+  3. DI 容器发现构造函数需要 IDatabaseHealthService
+  4. 容器查找注册：AddScoped<IDatabaseHealthService, DatabaseHealthService>
+  5. 创建 DatabaseHealthService，其构造函数需要 ISqlSugarClient
+  6. 容器返回已存在的 Singleton ISqlSugarClient 实例
+  7. Controller 调用 _healthService.GetMySqlVersionAsync()
+  8. DatabaseHealthService 内部执行 SqlSugar 查询
+  9. 返回 JSON 响应
+
+================================================================================
+【常见问题】
+================================================================================
+
+  Q: 为什么 Api 层不能直接注入 ISqlSugarClient？
+  A: 会导致 Api 层绑定 SqlSugar 这个具体 ORM；换 EF Core 或改数据访问时，
+     所有 Controller 都要改。通过 Application 接口隔离，只改 Infrastructure。
+
+  Q: 接口放 Application 还是 Domain？
+  A: 业务服务接口（如 IDatabaseHealthService、IProductService）放 Application。
+     纯领域仓储接口（如 IProductRepository）可放 Domain 或 Application，
+     步骤 08 再定。
+
+  Q: AddScoped 和 AddSingleton 选错了会怎样？
+  A: 把有状态/非线程安全的类注册 Singleton 可能导致并发问题；
+     把重量级连接池注册 Transient 会导致性能浪费。按上面口诀选即可。
+
+  Q: 编译报错找不到 IDatabaseHealthService？
+  A: 确认 Admin.Api 已引用 Application 项目（步骤 01 已配置）。
+
+  Q: 运行时 InvalidOperationException: Unable to resolve service？
+  A: 检查 DependencyInjection 是否注册了 AddScoped<IDatabaseHealthService, ...>。
+
+================================================================================
+【本步未涉及（留给后续步骤）】
+================================================================================
+
+  - 统一 API 响应格式 { code, message, data }    → 步骤 04
+  - IOptions<T> 读取配置                         → 步骤 05
+  - Repository / UnitOfWork 接口与实现           → 步骤 08
+  - 领域实体 Code First 建表                     → 步骤 07
+
+================================================================================
+【下一步】
+================================================================================
+
+  → 步骤 04：统一 API 响应与全局异常
+    目标：所有接口返回 { code, message, data }，异常统一捕获
+    技术：Middleware、全局异常处理、RESTful API
+
+  完成步骤 04 并验收通过后，确认再生成 doc/04-统一API响应与全局异常.txt
+
+================================================================================
