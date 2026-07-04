@@ -1,0 +1,389 @@
+================================================================================
+步骤 04：统一 API 响应与全局异常
+================================================================================
+前置条件：完成步骤 03（分层边界、DI 注册已建立）
+预计耗时：30 ~ 60 分钟
+完成日期：2026-07-04
+
+【验收标准】
+  [✅] ApiResult<T>、ApiResultCode 定义在 Application 层
+  [✅] BusinessException 定义在 Application 层
+  [✅] ExceptionHandlingMiddleware 捕获异常并返回统一 JSON
+  [✅] Program.cs 注册 app.UseExceptionHandling() 且位置靠前
+  [✅] ApiControllerBase 提供 Success / Fail 方法
+  [✅] HealthController 继承 ApiControllerBase，返回 { code, message, data }
+  [✅] 正常：code=0；异常（如密码错误）：code=500，HTTP 500
+  [✅] dotnet build 编译通过
+
+================================================================================
+【本步体验的技术点】（详见 Overview.txt）
+================================================================================
+
+  - Middleware（中间件）
+  - 全局异常处理
+  - RESTful API
+  - 统一 API 响应格式
+  - RequestDelegate 管道
+
+================================================================================
+【业务目标】
+================================================================================
+
+  让所有 API 接口返回统一格式 { code, message, data }，前端/调用方只需解析一种结构。
+  未捕获的异常由中间件统一处理，不直接暴露堆栈信息给客户端，同时记录服务端日志。
+
+================================================================================
+【改造前后对比】
+================================================================================
+
+  步骤 03（改造前）— GET /health/db 成功响应：
+    {
+      "status": "ok",
+      "database": "dotnet_all_in1",
+      "mysqlVersion": "8.0.xx"
+    }
+
+  步骤 04（改造后）— 成功响应：
+    {
+      "code": 0,
+      "message": "success",
+      "data": {
+        "database": "dotnet_all_in1",
+        "mysqlVersion": "8.0.xx"
+      }
+    }
+
+  步骤 04 — 异常响应（如数据库连接失败）：
+    {
+      "code": 500,
+      "message": "服务器内部错误",
+      "data": null
+    }
+
+================================================================================
+【本步涉及的文件】
+================================================================================
+
+  新建（Application 层）：
+    src/WatchShop.Application/Common/ApiResult.cs
+    src/WatchShop.Application/Common/ApiResultCode.cs
+    src/WatchShop.Application/Exceptions/BusinessException.cs
+
+  新建（Admin.Api 层）：
+    src/WatchShop.Admin.Api/Middleware/ExceptionHandlingMiddleware.cs
+    src/WatchShop.Admin.Api/Controllers/ApiControllerBase.cs
+
+  修改：
+    src/WatchShop.Admin.Api/Controllers/HealthController.cs
+    src/WatchShop.Admin.Api/Program.cs
+
+  注意：ApiResult / BusinessException 应放在 Application 层，不要放在 Admin.Api 层，
+        以便后续 Store.Api 等项目复用。
+
+================================================================================
+【操作步骤与参考代码】
+================================================================================
+
+── 1. Application 层 — 统一响应模型 ────────────────────
+
+  新建 Common/ApiResult.cs
+
+  namespace WatchShop.Application.Common;
+
+  public class ApiResult<T>
+  {
+      public int Code { get; set; }
+      public string Message { get; set; } = string.Empty;
+      public T? Data { get; set; }
+
+      public static ApiResult<T> Ok(T data, string message = "success")
+      {
+          return new ApiResult<T>
+          {
+              Code = ApiResultCode.Success,
+              Message = message,
+              Data = data
+          };
+      }
+
+      public static ApiResult<T> Fail(int code, string message)
+      {
+          return new ApiResult<T>
+          {
+              Code = code,
+              Message = message,
+              Data = default
+          };
+      }
+  }
+
+── 2. Application 层 — 状态码常量 ──────────────────────
+
+  新建 Common/ApiResultCode.cs
+
+  namespace WatchShop.Application.Common;
+
+  public static class ApiResultCode
+  {
+      public const int Success = 0;
+      public const int BadRequest = 400;
+      public const int Unauthorized = 401;
+      public const int Forbidden = 403;
+      public const int NotFound = 404;
+      public const int InternalError = 500;
+  }
+
+  说明：code=0 表示业务成功，与 HTTP 200 对应；非 0 表示业务错误或异常。
+
+── 3. Application 层 — 业务异常 ────────────────────────
+
+  新建 Exceptions/BusinessException.cs
+
+  namespace WatchShop.Application.Exceptions;
+
+  public class BusinessException : Exception
+  {
+      public int Code { get; }
+
+      public BusinessException(int code, string message) : base(message)
+      {
+          Code = code;
+      }
+
+      public BusinessException(string message)
+          : this(Common.ApiResultCode.BadRequest, message)
+      {
+      }
+  }
+
+  用途：可预期的错误（参数不合法、资源不存在等），中间件捕获后返回 400 + 业务码。
+
+── 4. Admin.Api — 全局异常中间件 ────────────────────────
+
+  新建 Middleware/ExceptionHandlingMiddleware.cs
+
+  using System.Net;
+  using WatchShop.Application.Common;
+  using WatchShop.Application.Exceptions;
+
+  namespace WatchShop.Admin.Api.Middleware;
+
+  public class ExceptionHandlingMiddleware
+  {
+      private readonly RequestDelegate _next;
+      private readonly ILogger<ExceptionHandlingMiddleware> _logger;
+
+      public ExceptionHandlingMiddleware(
+          RequestDelegate next,
+          ILogger<ExceptionHandlingMiddleware> logger)
+      {
+          _next = next;
+          _logger = logger;
+      }
+
+      public async Task InvokeAsync(HttpContext context)
+      {
+          try
+          {
+              await _next(context);
+          }
+          catch (BusinessException ex)
+          {
+              await WriteErrorAsync(context, HttpStatusCode.BadRequest, ex.Code, ex.Message);
+          }
+          catch (Exception ex)
+          {
+              _logger.LogError(ex, "Unhandled exception: {Message}", ex.Message);
+              await WriteErrorAsync(
+                  context,
+                  HttpStatusCode.InternalServerError,
+                  ApiResultCode.InternalError,
+                  "服务器内部错误");
+          }
+      }
+
+      private static async Task WriteErrorAsync(
+          HttpContext context,
+          HttpStatusCode httpStatus,
+          int code,
+          string message)
+      {
+          context.Response.StatusCode = (int)httpStatus;
+          context.Response.ContentType = "application/json";
+          var result = ApiResult<object>.Fail(code, message);
+          await context.Response.WriteAsJsonAsync(result);
+      }
+  }
+
+  public static class ExceptionHandlingMiddlewareExtensions
+  {
+      public static IApplicationBuilder UseExceptionHandling(this IApplicationBuilder app)
+      {
+          return app.UseMiddleware<ExceptionHandlingMiddleware>();
+      }
+  }
+
+── 5. Admin.Api — Controller 基类 ───────────────────────
+
+  新建 Controllers/ApiControllerBase.cs
+
+  using Microsoft.AspNetCore.Mvc;
+  using WatchShop.Application.Common;
+
+  namespace WatchShop.Admin.Api.Controllers;
+
+  [ApiController]
+  public abstract class ApiControllerBase : ControllerBase
+  {
+      protected IActionResult Success<T>(T data, string message = "success")
+      {
+          return Ok(ApiResult<T>.Ok(data, message));
+      }
+
+      protected IActionResult Fail(int code, string message)
+      {
+          return BadRequest(ApiResult<object>.Fail(code, message));
+      }
+  }
+
+── 6. 修改 HealthController ─────────────────────────────
+
+  using Microsoft.AspNetCore.Mvc;
+  using WatchShop.Application.Abstractions;
+
+  namespace WatchShop.Admin.Api.Controllers;
+
+  [Route("health")]
+  public class HealthController : ApiControllerBase
+  {
+      private readonly IDatabaseHealthService _healthService;
+
+      public HealthController(IDatabaseHealthService healthService)
+      {
+          _healthService = healthService;
+      }
+
+      [HttpGet("db")]
+      public async Task<IActionResult> CheckDatabase()
+      {
+          var version = await _healthService.GetMySqlVersionAsync();
+          return Success(new
+          {
+              database = "dotnet_all_in1",
+              mysqlVersion = version
+          });
+      }
+  }
+
+  变化：
+    - 继承 ApiControllerBase（基类已有 [ApiController]）
+    - 用 Success(...) 代替 Ok(...)
+    - 不再返回 { status: "ok", ... }，由 ApiResult 包装
+
+── 7. 修改 Program.cs ───────────────────────────────────
+
+  using WatchShop.Admin.Api.Middleware;
+  using WatchShop.Infrastructure;
+
+  var builder = WebApplication.CreateBuilder(args);
+  // ... AddControllers / AddSwaggerGen / AddInfrastructure ...
+
+  var app = builder.Build();
+
+  // 全局异常处理 — 尽量靠前
+  app.UseExceptionHandling();
+
+  if (app.Environment.IsDevelopment()) { /* Swagger */ }
+  app.UseHttpsRedirection();
+  app.UseAuthorization();
+  app.MapControllers();
+  app.Run();
+
+================================================================================
+【中间件管道顺序】
+================================================================================
+
+  请求进入
+    ↓
+  UseExceptionHandling()        ← 最外层，捕获后续所有未处理异常
+    ↓
+  UseSwagger / UseHttpsRedirection / UseAuthorization
+    ↓
+  Controller
+    ↓
+  成功 → Controller 通过 Success() 返回 ApiResult
+  失败 → Middleware 捕获异常，WriteErrorAsync 返回 ApiResult
+
+================================================================================
+【成功 vs 异常 处理分工】
+================================================================================
+
+  成功响应：
+    Controller 主动调用 Success(data) → ApiResult<T>.Ok(...)
+
+  业务异常（可预期）：
+    Service 层 throw new BusinessException("xxx")
+    → Middleware 捕获 → HTTP 400 + { code: 400, message: "xxx" }
+
+  系统异常（未预期）：
+    如数据库连接失败、NullReference
+    → Middleware 捕获 → 记录 LogError → HTTP 500 + { code: 500, message: "服务器内部错误" }
+    → 不向客户端暴露 ex.Message 或堆栈
+
+================================================================================
+【验收测试】
+================================================================================
+
+  1. 正常响应
+     Swagger 调用 GET /health/db
+     期望：code=0, message="success", data 含 mysqlVersion
+
+  2. 异常响应
+     临时将 appsettings.json 中数据库密码改错
+     重启应用，再调 GET /health/db
+     期望：HTTP 500, code=500, message="服务器内部错误", data=null
+     控制台有 LogError 记录
+     测完改回正确密码
+
+  3. 编译
+     dotnet build .\WatchShop.slnx  → 0 错误
+
+================================================================================
+【常见问题】
+================================================================================
+
+  Q: ApiResult 放 Application 还是 Admin.Api？
+  A: Application。多个 API 项目（Admin.Api、Store.Api）可共用同一响应格式。
+
+  Q: 为什么中间件要放在管道最前面？
+  A: 只有包在最外层，才能 try/catch 到 Controller 和后续中间件抛出的异常。
+
+  Q: Success 用 Ok() 包一层，HTTP 状态码是多少？
+  A: 200。业务成功与否看 body 里的 code 字段（0=成功）。
+
+  Q: Fail() 和 throw BusinessException 有什么区别？
+  A: Fail() 是 Controller 主动返回错误（不抛异常）；BusinessException 是 Service 层
+     抛出让 Middleware 统一处理。后续业务模块两种方式都会用到。
+
+  Q: Admin.Api/Common 下有重复的 ApiResult 文件？
+  A: 应删除 Admin.Api 下的副本，只保留 Application 层的那份。
+
+================================================================================
+【本步未涉及（留给后续步骤）】
+================================================================================
+
+  - IOptions<T> 读取配置                         → 步骤 05
+  - FluentValidation 模型验证错误统一包装         → 后续 CRUD 步骤
+  - JWT 鉴权失败返回 401 统一格式                 → 步骤 06
+
+================================================================================
+【下一步】
+================================================================================
+
+  → 步骤 05：Options 模式与配置管理
+    目标：连接字符串、JWT 等配置用 IOptions<T> 强类型读取
+    技术：Options Pattern、IOptions<T>、appsettings、User Secrets
+
+  完成步骤 05 并验收通过后，确认再生成 doc/05-Options模式与配置管理.txt
+
+================================================================================

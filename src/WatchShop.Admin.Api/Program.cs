@@ -1,3 +1,4 @@
+using WatchShop.Admin.Api.Middleware;
 using WatchShop.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,6 +12,9 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
+
+// 全局异常处理 — 尽量靠前，才能捕获后续中间件和 Controller 的异常
+app.UseExceptionHandling();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

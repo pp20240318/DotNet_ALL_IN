@@ -1,13 +1,11 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using SqlSugar;
 using WatchShop.Application.Abstractions;
 
 namespace WatchShop.Admin.Api.Controllers;
 
 
-[ApiController]
 [Route("health")]
-public class HealthController : ControllerBase
+public class HealthController : ApiControllerBase
 {
     private readonly IDatabaseHealthService _healthService;
     public HealthController(IDatabaseHealthService healthService)
@@ -18,9 +16,8 @@ public class HealthController : ControllerBase
     public async Task<IActionResult> CheckDatabase()
     {
         var version = await _healthService.GetMySqlVersionAsync();
-        return Ok(new
+        return Success(new
         {
-            status = "ok",
             database = "dotnet_all_in1",
             mysqlVersion = version
         });
