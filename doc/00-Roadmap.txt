@@ -73,9 +73,9 @@ ORM：     SqlSugar
 [✅] 20  Docker 部署与多环境
 
 ── 演进预留（主线完成后可选）────────────────────────────
-[  ] 21  Clean Architecture 边界重构
-[  ] 22  CQRS + MediatR 引入
-[  ] 23  C 端商城 Store.Api
+[✅] 21  Clean Architecture 边界重构
+[✅] 22  CQRS + MediatR 引入
+[✅] 23  C 端商城 Store.Api
 
 ================================================================================
 各步骤概要

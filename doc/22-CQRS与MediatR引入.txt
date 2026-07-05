@@ -1,0 +1,107 @@
+================================================================================
+步骤 22：CQRS + MediatR 引入
+================================================================================
+前置条件：完成步骤 21（Contracts/Features 目录就绪）
+预计耗时：40 ~ 60 分钟
+完成日期：2026-07-05
+
+【验收标准】
+  [✅] Application 引用 MediatR 12.x
+  [✅] AddApplication 中注册 MediatR（扫描 Application 程序集）
+  [✅] Brand 模块完整 CQRS：5 个 Query/Command + Handler
+  [✅] BrandController 改为注入 IMediator，不再直接依赖 IBrandService
+  [✅] 品牌 CRUD API 行为与重构前一致
+  [✅] dotnet build + 测试通过
+
+================================================================================
+【本步体验的技术点】（详见 Overview.txt）
+================================================================================
+
+  - CQRS（Command Query Responsibility Segregation）
+  - MediatR 请求/响应管道
+  - IRequest<T> / IRequestHandler<TRequest, TResponse>
+  - 瘦 Controller：仅负责 HTTP 绑定与 MediatR 派发
+
+================================================================================
+【业务目标】
+================================================================================
+
+  以品牌管理为示范，将「一个 API 动作 = 一个 Command/Query」落地，
+  为后续 Product、Order 等模块逐步迁移 CQRS 提供模板。
+
+================================================================================
+【本步涉及的文件】
+================================================================================
+
+  新建：
+    Application/Features/Brands/Queries/BrandQueries.cs
+    Application/Features/Brands/Commands/BrandCommands.cs
+    Application/Features/Brands/Handlers/BrandHandlers.cs
+
+  修改：
+    Application/WatchShop.Application.csproj  → PackageReference MediatR
+    Application/DependencyInjection.cs        → services.AddMediatR(...)
+    Admin.Api/Controllers/BrandController.cs → IMediator
+
+================================================================================
+【CQRS 结构示意】
+================================================================================
+
+  HTTP GET /brands
+    → GetBrandsPagedQuery
+    → GetBrandsPagedQueryHandler
+    → IUnitOfWork.Repository<Brand>().GetPagedAsync(...)
+
+  HTTP POST /brands
+    → CreateBrandCommand(BrandCreateRequest)
+    → CreateBrandCommandHandler
+    → IUnitOfWork.Repository<Brand>().InsertAsync(...)
+
+================================================================================
+【MediatR 注册】
+================================================================================
+
+  // Application/DependencyInjection.cs
+  services.AddMediatR(cfg =>
+      cfg.RegisterServicesFromAssembly(typeof(DependencyInjection).Assembly));
+
+  Handler 与 Query/Command 在同一程序集，自动发现注册。
+
+================================================================================
+【Controller 对比】
+================================================================================
+
+  重构前：
+    private readonly IBrandService _brandService;
+    await _brandService.GetPagedAsync(page, pageSize);
+
+  重构后：
+    private readonly IMediator _mediator;
+    await _mediator.Send(new GetBrandsPagedQuery(page, pageSize));
+
+================================================================================
+【IBrandService 是否保留？】
+================================================================================
+
+  本步保留 IBrandService + BrandService 注册（Infrastructure DI 未删除），
+  便于其他代码或测试继续引用。BrandController 已完全走 MediatR。
+  后续可将 BrandService 标记 Obsolete 或删除，Handler 即唯一入口。
+
+================================================================================
+【扩展练习】
+================================================================================
+
+  1. 为 Category 模块复制 Brands 的 Queries/Commands/Handlers 结构
+  2. 添加 MediatR Pipeline Behavior（如统一日志、验证）
+  3. 引入 FluentValidation + IRequestPreProcessor 做入参校验
+
+================================================================================
+【Swagger 验证】
+================================================================================
+
+  1. 启动 Admin.Api，登录获取 Token
+  2. GET /brands?page=1&pageSize=10 → 分页列表
+  3. POST /brands → 创建，PUT /brands/{id} → 更新
+  4. 响应格式仍为 { code, message, data }
+
+================================================================================

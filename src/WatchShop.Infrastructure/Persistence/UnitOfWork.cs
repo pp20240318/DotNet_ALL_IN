@@ -1,5 +1,5 @@
 using SqlSugar;
-using WatchShop.Application.Abstractions;
+using WatchShop.Application.Contracts.Persistence;
 using WatchShop.Domain.Entities;
 
 namespace WatchShop.Infrastructure.Persistence;

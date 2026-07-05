@@ -19,6 +19,9 @@ public static class DependencyInjection
         services.Configure<OrderOptions>(
             configuration.GetSection(OrderOptions.SectionName));
 
+        services.AddMediatR(cfg =>
+            cfg.RegisterServicesFromAssembly(typeof(DependencyInjection).Assembly));
+
         return services;
     }
 }

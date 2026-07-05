@@ -4,6 +4,7 @@
     <Project Path="src/WatchShop.Application/WatchShop.Application.csproj" />
     <Project Path="src/WatchShop.Domain/WatchShop.Domain.csproj" />
     <Project Path="src/WatchShop.Infrastructure/WatchShop.Infrastructure.csproj" Id="cab52001-eaa9-49bd-9053-e09653975400" />
+    <Project Path="src/WatchShop.Store.Api/WatchShop.Store.Api.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/WatchShop.Tests/WatchShop.Tests.csproj" />

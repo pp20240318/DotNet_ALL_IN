@@ -1,4 +1,5 @@
 using WatchShop.Application.Abstractions;
+using WatchShop.Application.Contracts.Persistence;
 using WatchShop.Application.Common;
 using WatchShop.Application.Exceptions;
 using WatchShop.Domain.Entities;

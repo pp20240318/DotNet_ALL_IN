@@ -2,7 +2,7 @@ using System.Linq.Expressions;
 using WatchShop.Application.Common;
 using WatchShop.Domain.Entities;
 
-namespace WatchShop.Application.Abstractions;
+namespace WatchShop.Application.Contracts.Persistence;
 
 public interface IRepository<T> where T : BaseEntity, new()
 {

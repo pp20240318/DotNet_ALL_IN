@@ -1,0 +1,95 @@
+================================================================================
+步骤 21：Clean Architecture 边界重构
+================================================================================
+前置条件：完成步骤 01 ~ 20（主线全部完成）
+预计耗时：30 ~ 45 分钟
+完成日期：2026-07-05
+
+【验收标准】
+  [✅] IRepository / IUnitOfWork 迁移至 Application/Contracts/Persistence
+  [✅] 品牌 DTO 迁移至 Application/Features/Brands/Dtos
+  [✅] C 端目录 DTO 定义在 Application/Features/Catalog/Dtos
+  [✅] Infrastructure 实现仅依赖 Contracts，不反向依赖 Api
+  [✅] dotnet build 通过，现有测试 5/5 通过
+
+================================================================================
+【本步体验的技术点】（详见 Overview.txt）
+================================================================================
+
+  - Clean Architecture 依赖方向（向内依赖）
+  - Contracts 层：持久化抽象与外部能力接口
+  - Features 垂直切片：按业务域组织 DTO / 用例
+  - 依赖倒置（DIP）：接口在 Application，实现在 Infrastructure
+
+================================================================================
+【业务目标】
+================================================================================
+
+  在现有四层架构基础上，进一步明确「契约」与「特性」边界，
+  为后续 CQRS、多 API 入口（Admin / Store）共享同一 Application 层做准备。
+
+================================================================================
+【重构后的 Application 目录】
+================================================================================
+
+  Application/
+    Contracts/
+      Persistence/
+        IRepository.cs      ← 从 Abstractions 迁入
+        IUnitOfWork.cs      ← 从 Abstractions 迁入
+    Features/
+      Brands/
+        Dtos/BrandDtos.cs   ← BrandCreate/Update/Response
+      Catalog/
+        Dtos/CatalogDtos.cs ← C 端展示 DTO
+        ICatalogService.cs
+    Abstractions/           ← 保留通用服务接口（Auth、Order 等）
+    Common/                 ← ApiResult、PagedResult
+    Options/                ← 配置类
+
+================================================================================
+【依赖规则】
+================================================================================
+
+  Domain          → 无外部依赖（实体 + 枚举）
+  Application     → Domain
+  Infrastructure  → Application + Domain
+  Admin.Api       → Application + Infrastructure
+  Store.Api       → Application + Infrastructure
+
+  禁止：Domain → Application / Infrastructure
+  禁止：Application → Infrastructure
+
+================================================================================
+【迁移要点】
+================================================================================
+
+  1. 删除 Abstractions/IRepository.cs、IUnitOfWork.cs（已迁至 Contracts）
+  2. 所有 Infrastructure Service 增加：
+       using WatchShop.Application.Contracts.Persistence;
+  3. IBrandService 保留在 Abstractions，DTO 引用 Features.Brands.Dtos
+  4. 其他模块（Product、Order 等）可逐步按 Brands 模式迁移
+
+================================================================================
+【与步骤 22 的关系】
+================================================================================
+
+  Contracts + Features 是引入 MediatR（CQRS）的前置结构：
+  - Query/Command 放在 Features/{Module}/Queries|Commands
+  - Handler 放在 Features/{Module}/Handlers
+  - Handler 通过 IUnitOfWork（Contracts）访问数据，不直接依赖 SqlSugar
+
+================================================================================
+【常见问题】
+================================================================================
+
+  Q: Domain 实体仍带 SqlSugar 特性，算违反 Clean Architecture 吗？
+  A: 严格 CA 应将 ORM 映射放在 Infrastructure。本项目为学习渐进式，
+     实体保留 SugarColumn 是务实折中；后续可引入 EF Fluent API 完全隔离。
+
+  Q: Abstractions 和 Contracts 有什么区别？
+  A: Contracts = 基础设施契约（持久化、消息等横切能力）
+     Abstractions = 业务服务接口（IAuthService、IOrderService 等）
+     长期可合并为 Contracts/Services，本步先拆分持久化契约。
+
+================================================================================

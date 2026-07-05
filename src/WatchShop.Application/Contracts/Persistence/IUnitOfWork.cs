@@ -1,6 +1,6 @@
 using WatchShop.Domain.Entities;
 
-namespace WatchShop.Application.Abstractions;
+namespace WatchShop.Application.Contracts.Persistence;
 
 public interface IUnitOfWork
 {

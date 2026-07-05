@@ -1,0 +1,126 @@
+================================================================================
+步骤 23：C 端商城 Store.Api
+================================================================================
+前置条件：完成步骤 21 ~ 22（Catalog 特性与共享 Application 层）
+预计耗时：45 ~ 60 分钟
+完成日期：2026-07-05
+
+【验收标准】
+  [✅] 新建 WatchShop.Store.Api 项目并加入 WatchShop.slnx
+  [✅] 复用 Application + Infrastructure（同一数据库与种子数据）
+  [✅] 公开目录 API：品牌、分类、上架商品列表、商品详情（含 SKU）
+  [✅] POST /store/orders 下单（扣库存、写订单、发 OrderCreatedEvent）
+  [✅] 无需 JWT 即可访问目录与下单（C 端公开接口）
+  [✅] 默认端口 http://localhost:5240，Swagger 可调试
+  [✅] dotnet build 通过
+
+================================================================================
+【本步体验的技术点】（详见 Overview.txt）
+================================================================================
+
+  - 多 API 宿主共享业务层（BFF / 多端入口）
+  - 读写分离的业务视图（Catalog DTO vs Admin 全量 DTO）
+  - 同一 Domain + Infrastructure，不同 Api 暴露不同能力边界
+
+================================================================================
+【业务目标】
+================================================================================
+
+  在管理后台（Admin.Api）之外，增加面向消费者的商城 API：
+  浏览商品 → 查看详情与 SKU → 提交订单。
+  与后台共用订单、库存、事件总线，演示「一套核心、多个入口」。
+
+================================================================================
+【本步涉及的文件】
+================================================================================
+
+  新建项目：
+    src/WatchShop.Store.Api/
+      Program.cs
+      appsettings.json
+      Properties/launchSettings.json
+      Controllers/ApiControllerBase.cs
+      Controllers/CatalogController.cs   （含 StoreOrderController）
+      Middleware/ExceptionHandlingMiddleware.cs
+      Extensions/DatabaseInitializerExtensions.cs
+
+  Application 层：
+    Features/Catalog/ICatalogService.cs
+    Features/Catalog/Dtos/CatalogDtos.cs
+
+  Infrastructure 层：
+    Services/CatalogService.cs
+    DependencyInjection.cs → AddScoped<ICatalogService, CatalogService>()
+
+================================================================================
+【API 列表】
+================================================================================
+
+  GET  /catalog/brands              启用中的品牌
+  GET  /catalog/categories          启用中的分类
+  GET  /catalog/products            已上架商品列表
+  GET  /catalog/products/{id}       商品详情 + SKU 列表
+  POST /store/orders                创建订单（公开，无需 Token）
+
+  下单请求体示例：
+  {
+    "skuId": 1,
+    "quantity": 1,
+    "receiverName": "张三",
+    "receiverPhone": "13800138000",
+    "receiverAddress": "北京市朝阳区xxx"
+  }
+
+================================================================================
+【CatalogService 核心逻辑】
+================================================================================
+
+  目录查询：
+    - 仅返回 IsEnabled / OnSale 的数据
+    - 详情接口聚合 Brand、Category、ProductSku
+
+  下单 CreateStoreOrderAsync：
+    1. 校验 SKU 存在、库存充足、商品已上架
+    2. ExecuteInTransactionAsync 内：扣库存 → 插入 ShopOrder → 插入 OrderItem
+    3. 发布 OrderCreatedEvent（与后台 demo 订单一致，触发超时关单等）
+
+================================================================================
+【Admin.Api vs Store.Api】
+================================================================================
+
+  | 维度       | Admin.Api          | Store.Api              |
+  |------------|--------------------|------------------------|
+  | 端口       | 5234 / 7234        | 5240 / 7240            |
+  | 认证       | JWT 必填（除登录） | 无（公开目录+下单）    |
+  | 能力       | 全量 CRUD、发货    | 只读目录 + 下单        |
+  | 操作日志   | OperationLogFilter | 无                     |
+  | 共享层     | Application + Infra| 同左                   |
+
+================================================================================
+【启动与验证】
+================================================================================
+
+  # 终端 1：管理后台（可选，用于上架商品）
+  dotnet run --project src/WatchShop.Admin.Api
+
+  # 终端 2：C 端商城
+  dotnet run --project src/WatchShop.Store.Api
+
+  验证步骤：
+  1. GET http://localhost:5240/catalog/products
+  2. GET http://localhost:5240/catalog/products/{id}
+  3. POST http://localhost:5240/store/orders（body 见上）
+  4. 后台 GET /orders 可看到新订单（需 Admin Token）
+
+  注意：种子商品默认为 Draft，需先在后台 PUT 商品 status 为 OnSale。
+
+================================================================================
+【后续扩展】
+================================================================================
+
+  - Store.Api 增加用户注册/登录（C 端 JWT）
+  - 购物车、支付回调、订单查询（仅本人）
+  - docker-compose 增加 store-api 服务（端口 8081）
+  - Catalog 商品列表接入 Redis 缓存（复用步骤 14 CacheService）
+
+================================================================================

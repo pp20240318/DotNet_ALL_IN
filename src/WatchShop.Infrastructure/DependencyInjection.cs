@@ -4,6 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using SqlSugar;
 using WatchShop.Application.Abstractions;
+using WatchShop.Application.Contracts.Persistence;
+using WatchShop.Application.Features.Catalog;
 using WatchShop.Application.Options;
 using WatchShop.Infrastructure.Background;
 using WatchShop.Infrastructure.Caching;
@@ -61,6 +63,7 @@ public static class DependencyInjection
         services.AddScoped<IProductService, ProductService>();
         services.AddScoped<IProductSkuService, ProductSkuService>();
         services.AddScoped<IOrderService, OrderService>();
+        services.AddScoped<ICatalogService, CatalogService>();
 
         return services;
     }
