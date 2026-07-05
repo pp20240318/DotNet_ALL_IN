@@ -1,0 +1,113 @@
+================================================================================
+步骤 10：商品管理 CRUD
+================================================================================
+前置条件：完成步骤 09（品牌/分类 CRUD 已就绪）
+预计耗时：60 ~ 75 分钟
+完成日期：2026-07-05
+
+【验收标准】
+  [✅] IProductService 接口与 ProductService 实现
+  [✅] ProductController 完整 CRUD + 上下架
+  [✅] GET /products 支持 keyword、brandId、categoryId、status 分页筛选
+  [✅] PUT /products/{id}/status 修改商品状态（Draft/OnSale/OffSale）
+  [✅] 创建/更新时校验 BrandId、CategoryId 存在
+  [✅] 响应包含 BrandName、CategoryName 关联信息
+  [✅] dotnet build 编译通过
+
+================================================================================
+【本步体验的技术点】（详见 Overview.txt）
+================================================================================
+
+  - 多条件分页查询
+  - 枚举状态流转（ProductStatus）
+  - 外键关联校验
+  - DTO 请求/响应模型
+  - BusinessException 业务校验
+
+================================================================================
+【业务目标】
+================================================================================
+
+  实现商品增删改查与上下架管理，支持按关键词、品牌、分类、状态筛选。
+  为步骤 11 SKU 管理和步骤 14 商品缓存提供业务基础。
+
+================================================================================
+【本步涉及的文件】
+================================================================================
+
+  新建（Application）：
+    src/WatchShop.Application/Abstractions/IProductService.cs
+
+  新建（Infrastructure）：
+    src/WatchShop.Infrastructure/Services/ProductService.cs
+
+  新建（Admin.Api）：
+    src/WatchShop.Admin.Api/Controllers/ProductController.cs
+
+  修改：
+    src/WatchShop.Infrastructure/DependencyInjection.cs
+
+================================================================================
+【API 接口】（均需 Bearer Token）
+================================================================================
+
+  GET    /products              分页列表（ProductQueryRequest）
+         参数：page, pageSize, keyword, brandId, categoryId, status
+  GET    /products/{id}         商品详情（含品牌名、分类名）
+  POST   /products              创建商品
+  PUT    /products/{id}         更新商品（需传 version 乐观锁）
+  PUT    /products/{id}/status  上下架（?status=OnSale / OffSale / Draft）
+  DELETE /products/{id}         软删除
+
+  创建示例：
+    POST /products
+    {
+      "name": "Rolex Datejust",
+      "brandId": {rolexId},
+      "categoryId": {mechanicalId},
+      "description": "经典款",
+      "price": 98000,
+      "status": "OnSale"
+    }
+
+  ProductStatus 枚举：
+    Draft=0（草稿）  OnSale=1（上架）  OffSale=2（下架）
+
+================================================================================
+【核心流程】
+================================================================================
+
+  创建：EnsureBrandAndCategoryExist → InsertAsync
+  更新：查实体 → 赋值 → Version 乐观锁 → UpdateAsync → 清除缓存（步骤 14）
+  上下架：ChangeStatusAsync → 更新 Status → 清除缓存
+  分页：Repository.GetPagedAsync + 多条件 predicate → MapProduct 填充品牌/分类名
+
+================================================================================
+【常见问题】
+================================================================================
+
+  Q: 创建商品报"品牌不存在"？
+  A: brandId 须为已存在品牌的雪花 ID；先 GET /brands 获取。
+
+  Q: 更新报"数据可能已被其他人修改"？
+  A: Version 不匹配（乐观锁冲突）；重新 GET 获取最新 version 再提交。
+
+  Q: 种子商品有哪些？
+  A: Rolex Submariner、Omega Seamaster、Casio Classic，启动时自动插入。
+
+================================================================================
+【本步未涉及（留给后续步骤）】
+================================================================================
+
+  - SKU 多规格与库存                         → 步骤 11
+  - 商品详情 Redis 缓存                      → 步骤 14
+
+================================================================================
+【下一步】
+================================================================================
+
+  → 步骤 11：SKU 与库存管理
+    目标：ProductSkuController、入库/出库、事务
+    技术：SpecJson 规格、ExecuteInTransactionAsync
+
+================================================================================

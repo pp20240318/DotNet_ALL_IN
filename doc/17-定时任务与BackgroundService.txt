@@ -1,0 +1,111 @@
+================================================================================
+步骤 17：定时任务与 BackgroundService
+================================================================================
+前置条件：完成步骤 12（订单实体与 OrderStatus）
+预计耗时：30 ~ 45 分钟
+完成日期：2026-07-05
+
+【验收标准】
+  [✅] OrderOptions.PaymentTimeoutMinutes 配置（默认 30 分钟）
+  [✅] OrderTimeoutBackgroundService 继承 BackgroundService
+  [✅] 每分钟扫描 PendingPayment 且超时的订单
+  [✅] 自动将超时订单 Status 改为 Cancelled，记录 CancelledAt
+  [✅] 异常捕获 + LogError，不中断循环
+  [✅] dotnet build 编译通过
+
+================================================================================
+【本步体验的技术点】（详见 Overview.txt）
+================================================================================
+
+  - BackgroundService / IHostedService
+  - 定时轮询（Task.Delay）
+  - IServiceScopeFactory 在后台任务中解析 Scoped 服务
+  - Options 配置驱动业务规则
+  - 后台任务异常隔离
+
+================================================================================
+【业务目标】
+================================================================================
+
+  自动关闭超时未支付订单，释放库存预占（演示版不涉及库存），
+  与步骤 12 手动取消、步骤 16 事件驱动形成完整订单生命周期。
+
+================================================================================
+【本步涉及的文件】
+================================================================================
+
+  新建（Application）：
+    src/WatchShop.Application/Options/OrderOptions.cs
+
+  新建（Infrastructure）：
+    src/WatchShop.Infrastructure/Background/OrderTimeoutBackgroundService.cs
+
+  修改：
+    src/WatchShop.Application/DependencyInjection.cs
+    src/WatchShop.Infrastructure/DependencyInjection.cs
+    src/WatchShop.Admin.Api/appsettings.json
+
+================================================================================
+【配置】
+================================================================================
+
+  appsettings.json：
+    "Order": {
+      "PaymentTimeoutMinutes": 30
+    }
+
+  含义：CreatedAt 早于 (UtcNow - 30min) 的 PendingPayment 订单将被取消。
+
+================================================================================
+【执行逻辑】
+================================================================================
+
+  ExecuteAsync 循环（直到 CancellationToken 取消）：
+    1. CreateScope → 取 ISqlSugarClient
+    2. deadline = UtcNow.AddMinutes(-PaymentTimeoutMinutes)
+    3. 查询 Status=PendingPayment && CreatedAt<=deadline && !IsDeleted
+    4. 逐条更新 Status=Cancelled, CancelledAt=UtcNow
+    5. LogInformation 记录 OrderNo
+    6. catch 异常 LogError
+    7. await Task.Delay(1 分钟)
+
+================================================================================
+【DI 注册】
+================================================================================
+
+  services.AddHostedService<OrderTimeoutBackgroundService>();
+
+  与 EventConsumerBackgroundService 并存，各自独立循环。
+
+================================================================================
+【常见问题】
+================================================================================
+
+  Q: 如何快速验证超时关单？
+  A: 临时将 PaymentTimeoutMinutes 改为 0 或 1，创建 demo 订单，等 1 分钟看日志。
+
+  Q: 为什么用轮询而不是 Hangfire/Quartz？
+  A: 学习 BackgroundService 原生能力；复杂调度可后续引入 Hangfire。
+
+  Q: 后台任务能注入 Scoped Service 吗？
+  A: 不能直接注入；须 CreateScope() 在 Scope 内解析。
+
+  Q: 超时取消会发 OrderCancelledEvent 吗？
+  A: 当前不会；可按 CancelAsync 同样逻辑扩展 PublishAsync。
+
+================================================================================
+【本步未涉及（留给后续步骤）】
+================================================================================
+
+  - Hangfire / Quartz 可视化调度               → 演进预留
+  - 延迟消息精确关单（MQ TTL）                 → 步骤 16 演进
+
+================================================================================
+【下一步】
+================================================================================
+
+  → 步骤 18：健康检查与可观测性
+    目标：/health、/health/ready、MySQL/Redis 探针
+    技术：AspNetCore.HealthChecks
+
+================================================================================

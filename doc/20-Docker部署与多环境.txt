@@ -1,0 +1,148 @@
+================================================================================
+步骤 20：Docker 部署与多环境
+================================================================================
+前置条件：完成步骤 01 ~ 19（应用功能完整）
+预计耗时：45 ~ 60 分钟
+完成日期：2026-07-05
+
+【验收标准】
+  [✅] 根目录 Dockerfile 多阶段构建 net8.0
+  [✅] docker-compose.yml 编排 mysql、redis、api 三服务
+  [✅] appsettings.Production.json 覆盖 Database/Redis 为容器内主机名
+  [✅] API 容器 ASPNETCORE_ENVIRONMENT=Production，监听 8080
+  [✅] docker compose up --build 可启动整套环境
+  [✅] 访问 http://localhost:8080/health 返回 Healthy（MySQL 就绪后）
+
+================================================================================
+【本步体验的技术点】（详见 Overview.txt）
+================================================================================
+
+  - Docker 多阶段构建（multi-stage build）
+  - Docker Compose 服务编排
+  - ASPNETCORE_ENVIRONMENT 多环境
+  - appsettings.{Environment}.json 覆盖
+  - 容器网络与服务发现（mysql、redis 主机名）
+
+================================================================================
+【业务目标】
+================================================================================
+
+  将 WatchShop Admin API 容器化，一键启动 MySQL + Redis + API，
+  演示 Development（本地 dotnet run）与 Production（Docker）配置分离。
+
+================================================================================
+【本步涉及的文件】
+================================================================================
+
+  新建（根目录）：
+    Dockerfile
+    docker-compose.yml
+
+  修改/新建：
+    src/WatchShop.Admin.Api/appsettings.Production.json
+
+================================================================================
+【Dockerfile 结构】
+================================================================================
+
+  Stage build（sdk:8.0）：
+    COPY → dotnet restore WatchShop.slnx
+    dotnet publish Admin.Api -c Release -o /app/publish
+
+  Stage final（aspnet:8.0）：
+    COPY publish 输出
+    ENV ASPNETCORE_URLS=http://+:8080
+    EXPOSE 8080
+    ENTRYPOINT dotnet WatchShop.Admin.Api.dll
+
+================================================================================
+【docker-compose.yml 服务】
+================================================================================
+
+  mysql（mysql:8.0）
+    端口 3306
+    MYSQL_DATABASE=dotnet_all_in1
+    MYSQL_USER=dotnet_all_in2 / MYSQL_PASSWORD=dotnet_all_in3
+    卷 mysql_data 持久化
+
+  redis（redis:7）
+    端口 6379
+
+  api（build: Dockerfile）
+    depends_on: mysql, redis
+    ASPNETCORE_ENVIRONMENT=Production
+    端口 8080:8080
+
+================================================================================
+【多环境配置对比】
+================================================================================
+
+  Development（本地 dotnet run）：
+    appsettings.json
+    Database.Server = localhost
+    Redis.Enabled = false（内存缓存）
+
+  Production（Docker）：
+    appsettings.Production.json
+    Database.Server = mysql
+    Redis.Enabled = true, ConnectionString = redis:6379
+
+  默认管理员（任意环境）：admin / Admin@123
+  种子品牌：Rolex、Omega；分类：机械表、石英表
+
+================================================================================
+【部署命令】
+================================================================================
+
+  # 构建并启动
+  docker compose up --build -d
+
+  # 查看日志
+  docker compose logs -f api
+
+  # 健康检查
+  curl http://localhost:8080/health
+
+  # Swagger（Production 默认不启用，可改 IsDevelopment 或加环境变量）
+
+  # 停止
+  docker compose down
+
+================================================================================
+【常见问题】
+================================================================================
+
+  Q: api 启动报 MySQL 连接失败？
+  A: mysql 容器尚未 ready；depends_on 不保证数据库初始化完成，可 retry 或加 healthcheck。
+
+  Q: 8080 端口被占用？
+  A: 修改 docker-compose ports 为 "8081:8080"。
+
+  Q: Production 没有 Swagger？
+  A: Program.cs 仅 IsDevelopment() 启用 Swagger；生产可通过环境变量或反向代理访问文档。
+
+  Q: JWT SecretKey 生产安全？
+  A: 应通过环境变量覆盖 Jwt:SecretKey，勿使用 appsettings 默认值。
+
+  Q: Redis 在 compose 里但本地开发不用？
+  A: 正常。开发 Enabled=false；Docker Production 才连 redis 服务。
+
+================================================================================
+【本步未涉及（演进预留）】
+================================================================================
+
+  - K8s Deployment / Helm                         → 运维扩展
+  - CI/CD 流水线（GitHub Actions）                → 后续按需
+  - 步骤 21 Clean Architecture 重构               → 路线图下一阶段
+
+================================================================================
+【下一步】
+================================================================================
+
+  → 步骤 21：Clean Architecture 边界重构（可选演进）
+  → 步骤 22：CQRS + MediatR 引入（可选演进）
+  → 步骤 23：C 端商城 Store.Api（可选演进）
+
+  主线步骤 01 ~ 20 已全部完成 ✅
+
+================================================================================

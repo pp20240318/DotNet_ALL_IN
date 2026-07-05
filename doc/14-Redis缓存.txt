@@ -1,0 +1,125 @@
+================================================================================
+步骤 14：Redis 缓存
+================================================================================
+前置条件：完成步骤 10（ProductService 已实现）
+预计耗时：45 ~ 60 分钟
+完成日期：2026-07-05
+
+【验收标准】
+  [✅] RedisOptions 定义（Enabled、ConnectionString、DefaultExpirationMinutes）
+  [✅] AddRedisCache 扩展：Enabled=true 用 StackExchangeRedis，false 用内存缓存
+  [✅] CacheService 封装 IDistributedCache（Get/Set/Remove，JSON 序列化）
+  [✅] ProductService.GetByIdAsync 读缓存，更新/删除/上下架时 Remove 缓存
+  [✅] appsettings.json 默认 Redis.Enabled=false
+  [✅] appsettings.Production.json 生产环境 Enabled=true
+  [✅] dotnet build 编译通过
+
+================================================================================
+【本步体验的技术点】（详见 Overview.txt）
+================================================================================
+
+  - Redis / IDistributedCache
+  - StackExchange.Redis
+  - 分布式缓存 vs 内存缓存（AddDistributedMemoryCache）
+  - 缓存 Key 设计（product:{id}）
+  - Cache-Aside 模式（旁路缓存）
+  - Options 开关控制后端实现
+
+================================================================================
+【业务目标】
+================================================================================
+
+  为商品详情接口加缓存，减轻数据库压力。开发环境默认关闭 Redis，
+  使用进程内内存缓存即可调试；生产/Docker 环境启用 Redis。
+
+================================================================================
+【本步涉及的文件】
+================================================================================
+
+  新建（Application）：
+    src/WatchShop.Application/Options/RedisOptions.cs
+
+  新建（Infrastructure）：
+    src/WatchShop.Infrastructure/Caching/CacheService.cs
+
+  修改：
+    src/WatchShop.Infrastructure/DependencyInjection.cs  （AddRedisCache）
+    src/WatchShop.Infrastructure/Services/ProductService.cs
+    src/WatchShop.Application/DependencyInjection.cs
+    src/WatchShop.Admin.Api/Program.cs
+    src/WatchShop.Admin.Api/appsettings.json
+    src/WatchShop.Admin.Api/appsettings.Production.json
+
+================================================================================
+【配置说明】
+================================================================================
+
+  appsettings.json（开发，默认）：
+    "Redis": {
+      "Enabled": false,
+      "ConnectionString": "localhost:6379",
+      "DefaultExpirationMinutes": 30
+    }
+
+  appsettings.Production.json（Docker）：
+    "Redis": {
+      "Enabled": true,
+      "ConnectionString": "redis:6379"
+    }
+
+  Enabled=false → AddDistributedMemoryCache()
+  Enabled=true  → AddStackExchangeRedisCache，InstanceName="WatchShop:"
+
+================================================================================
+【缓存流程（ProductService）】
+================================================================================
+
+  读：GetByIdAsync
+    → CacheService.GetAsync<ProductResponse>("product:{id}")
+    → 命中则返回
+    → 未命中查库 → SetAsync 写入 → 返回
+
+  写：Update / Delete / ChangeStatus
+    → 数据库更新后 CacheService.RemoveAsync("product:{id}")
+
+  过期：DefaultExpirationMinutes（默认 30 分钟），AbsoluteExpirationRelativeToNow
+
+================================================================================
+【Program.cs 注册】
+================================================================================
+
+  builder.Services.AddRedisCache(builder.Configuration);
+  // CacheService 在 AddInfrastructure 中 AddScoped
+
+================================================================================
+【常见问题】
+================================================================================
+
+  Q: 本地没装 Redis 能跑吗？
+  A: 能。Enabled=false 时用内存缓存，无需 Redis 服务。
+
+  Q: Docker 里 Redis 连不上？
+  A: Production 配置 ConnectionString 应为 redis:6379（docker-compose 服务名）。
+
+  Q: 缓存与数据库不一致？
+  A: 写操作已 Remove 缓存；若直接改库需手动清缓存或等过期。
+
+  Q: 多实例内存缓存不共享？
+  A: 内存缓存仅单进程有效；多实例部署须 Enabled=true 用 Redis。
+
+================================================================================
+【本步未涉及（留给后续步骤）】
+================================================================================
+
+  - 缓存穿透/击穿/雪崩防护                     → 后续按需（空值缓存、分布式锁）
+  - 品牌/分类缓存                             → 可按 Product 模式扩展
+
+================================================================================
+【下一步】
+================================================================================
+
+  → 步骤 15：操作日志与 Serilog
+    目标：OperationLogFilter、结构化日志
+    技术：IAsyncActionFilter、Serilog Request Logging
+
+================================================================================

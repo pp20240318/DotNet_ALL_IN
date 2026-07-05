@@ -1,0 +1,116 @@
+================================================================================
+步骤 18：健康检查与可观测性
+================================================================================
+前置条件：完成步骤 02（MySQL 连通）、步骤 14（Redis 可选）
+预计耗时：30 ~ 45 分钟
+完成日期：2026-07-05
+
+【验收标准】
+  [✅] AddWatchShopHealthChecks 注册 MySQL 健康检查
+  [✅] Redis.Enabled=true 时追加 Redis 健康检查
+  [✅] GET /health 返回整体健康状态
+  [✅] GET /health/ready 返回就绪探针（mysql / redis）
+  [✅] Serilog 请求日志（步骤 15 已接入）
+  [✅] dotnet build 编译通过
+
+================================================================================
+【本步体验的技术点】（详见 Overview.txt）
+================================================================================
+
+  - ASP.NET Core Health Checks
+  - AspNetCore.HealthChecks.MySql / Redis
+  - Liveness vs Readiness 探针
+  - Serilog 结构化日志与请求日志
+  - 可观测性（Observability）基础
+
+================================================================================
+【业务目标】
+================================================================================
+
+  提供标准健康检查端点，供 Docker/K8s 探活与运维监控。
+  结合 Serilog 实现请求级可观测性，为步骤 20 容器部署做准备。
+
+================================================================================
+【本步涉及的文件】
+================================================================================
+
+  新建（Admin.Api）：
+    src/WatchShop.Admin.Api/Extensions/HealthCheckExtensions.cs
+
+  修改：
+    src/WatchShop.Admin.Api/Program.cs
+    各项目 .csproj（HealthChecks.MySql、HealthChecks.Redis 包）
+
+  关联（步骤 15）：
+    src/WatchShop.Admin.Api/Extensions/SerilogExtensions.cs
+
+================================================================================
+【API 端点】（匿名，无需 Token）
+================================================================================
+
+  GET /health
+    全部已注册 HealthCheck 汇总结果
+    Healthy → HTTP 200
+    Unhealthy → HTTP 503
+
+  GET /health/ready
+    就绪探针：mysql（及 redis，若 Enabled）
+    用于 K8s readinessProbe，依赖未就绪时不接收流量
+
+  保留步骤 02：
+    GET /health/db  返回 MySQL 版本（HealthController）
+
+================================================================================
+【注册逻辑】
+================================================================================
+
+  AddWatchShopHealthChecks(configuration)：
+    读取 DatabaseOptions → AddMySql(connectionString, name: "mysql")
+    读取 RedisOptions → Enabled 时 AddRedis(connectionString, name: "redis")
+
+  MapWatchShopHealthChecks(app)：
+    app.MapHealthChecks("/health")
+    app.MapHealthChecks("/health/ready", Predicate 过滤 mysql/redis)
+
+================================================================================
+【Program.cs】
+================================================================================
+
+  builder.Services.AddWatchShopHealthChecks(builder.Configuration);
+  ...
+  app.MapWatchShopHealthChecks();
+
+  与 UseSerilogRequestLogging 配合，每个请求均有结构化日志。
+
+================================================================================
+【常见问题】
+================================================================================
+
+  Q: /health 返回 Unhealthy？
+  A: 检查 MySQL 是否运行、Database 配置是否正确；Redis Enabled=true 时 Redis 也须可达。
+
+  Q: 开发环境 Redis 关闭时 /health 怎样？
+  A: 不注册 Redis 检查，仅 MySQL；/health 只依赖数据库。
+
+  Q: /health 与 /health/db 区别？
+  A: /health 标准 HealthChecks 格式；/health/db 自定义业务接口返回版本号。
+
+  Q: 如何接入 Prometheus？
+  A: 可添加 AspNetCore.HealthChecks.UI 或 OpenTelemetry Exporter，本步未包含。
+
+================================================================================
+【本步未涉及（留给后续步骤）】
+================================================================================
+
+  - OpenTelemetry 链路追踪                     → 演进预留
+  - HealthChecks UI 仪表盘                     → 运维扩展
+
+================================================================================
+【下一步】
+================================================================================
+
+  → 步骤 19：单元测试与集成测试
+    目标：xUnit、WebApplicationFactory、HealthEndpointTests
+    技术：Microsoft.AspNetCore.Mvc.Testing
+
+================================================================================

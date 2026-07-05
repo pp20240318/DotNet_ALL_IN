@@ -1,0 +1,120 @@
+================================================================================
+步骤 16：消息队列与事件驱动
+================================================================================
+前置条件：完成步骤 12（OrderService 发布事件）
+预计耗时：45 ~ 60 分钟
+完成日期：2026-07-05
+
+【验收标准】
+  [✅] IEventPublisher 接口定义在 Application
+  [✅] ChannelEventPublisher 基于 Channel<object> 发布事件
+  [✅] EventConsumerBackgroundService 后台消费并写 LogInformation
+  [✅] OrderCreatedEvent、OrderCancelledEvent 记录类型
+  [✅] CreateDemoOrderAsync 发布 OrderCreatedEvent
+  [✅] CancelAsync 发布 OrderCancelledEvent
+  [✅] dotnet build 编译通过
+
+================================================================================
+【本步体验的技术点】（详见 Overview.txt）
+================================================================================
+
+  - 事件驱动架构（EDA）
+  - System.Threading.Channels（进程内 MQ）
+  - IHostedService / BackgroundService
+  - 发布-订阅模式
+  - record 不可变事件模型
+
+================================================================================
+【业务目标】
+================================================================================
+
+  订单创建/取消与后续处理解耦：Service 只发布事件，消费者异步处理
+  （当前为日志演示，后续可扩展发通知、同步 ES、扣库存等）。
+
+================================================================================
+【本步涉及的文件】
+================================================================================
+
+  新建（Application）：
+    src/WatchShop.Application/Abstractions/IEventPublisher.cs
+    src/WatchShop.Application/Events/OrderEvents.cs
+
+  新建（Infrastructure）：
+    src/WatchShop.Infrastructure/Messaging/ChannelEventPublisher.cs
+    （同文件含 EventConsumerBackgroundService）
+
+  修改：
+    src/WatchShop.Infrastructure/Services/OrderService.cs
+    src/WatchShop.Infrastructure/DependencyInjection.cs
+
+================================================================================
+【架构示意】
+================================================================================
+
+  OrderService
+    → IEventPublisher.PublishAsync(OrderCreatedEvent)
+    → Channel.Writer.WriteAsync
+
+  EventConsumerBackgroundService（BackgroundService）
+    → Channel.Reader.ReadAllAsync
+    → _logger.LogInformation("Event consumed: {EventType} {@Event}", ...)
+
+================================================================================
+【事件定义】
+================================================================================
+
+  OrderCreatedEvent(long OrderId, string OrderNo, DateTime CreatedAt)
+  OrderCancelledEvent(long OrderId, string OrderNo, string Reason)
+
+  使用 C# record，便于解构与日志序列化。
+
+================================================================================
+【DI 注册】
+================================================================================
+
+  services.AddSingleton(_ => Channel.CreateUnbounded<object>());
+  services.AddSingleton<IEventPublisher, ChannelEventPublisher>();
+  services.AddHostedService<EventConsumerBackgroundService>();
+
+================================================================================
+【验证方式】
+================================================================================
+
+  1. POST /orders/demo 创建演示订单
+  2. 控制台 / Serilog 输出：
+     Event consumed: OrderCreatedEvent { OrderId=..., OrderNo=WS..., ... }
+  3. POST /orders/{id}/cancel
+  4. 输出 OrderCancelledEvent 消费日志
+
+================================================================================
+【常见问题】
+================================================================================
+
+  Q: 这是真正的 RabbitMQ 吗？
+  A: 否。本步用 Channel 模拟进程内 MQ，零外部依赖；步骤 16 路线图提及 RabbitMQ/CAP 为演进方向。
+
+  Q: 事件丢失？
+  A: Unbounded Channel 内存队列，进程重启丢失；生产应换持久化 MQ + Outbox。
+
+  Q: 多个消费者？
+  A: 当前单 BackgroundService 单 Reader；可注册多个 HostedService 或换真实 MQ。
+
+  Q: PublishAsync 会阻塞 API 吗？
+  A: WriteAsync 通常很快；消费者异步处理，不阻塞 HTTP 响应。
+
+================================================================================
+【本步未涉及（留给后续步骤）】
+================================================================================
+
+  - RabbitMQ / CAP / 死信队列                  → 演进预留
+  - Outbox 模式保证一致性                      → 演进预留
+
+================================================================================
+【下一步】
+================================================================================
+
+  → 步骤 17：定时任务与 BackgroundService
+    目标：OrderTimeoutBackgroundService 超时关单
+    技术：OrderOptions.PaymentTimeoutMinutes
+
+================================================================================

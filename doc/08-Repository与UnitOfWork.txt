@@ -1,0 +1,134 @@
+================================================================================
+步骤 08：Repository 与 UnitOfWork
+================================================================================
+前置条件：完成步骤 07（实体与 DbInitializer 已就绪）
+预计耗时：45 ~ 60 分钟
+完成日期：2026-07-05
+
+【验收标准】
+  [✅] IRepository<T> 定义在 Application/Abstractions
+  [✅] Repository<T> 实现在 Infrastructure/Persistence
+  [✅] IUnitOfWork + UnitOfWork 提供多仓储访问与事务
+  [✅] InsertAsync 自动分配雪花 ID、CreatedAt、Version=0
+  [✅] UpdateAsync 使用 ExecuteCommandWithOptLockAsync 乐观锁
+  [✅] SoftDeleteAsync 标记 IsDeleted=true（非物理删除）
+  [✅] 查询默认过滤 IsDeleted=false
+  [✅] ExecuteInTransactionAsync 封装 SqlSugar UseTranAsync
+  [✅] dotnet build 编译通过
+
+================================================================================
+【本步体验的技术点】（详见 Overview.txt）
+================================================================================
+
+  - Repository Pattern（仓储模式）
+  - Unit of Work（工作单元）
+  - 泛型约束（where T : BaseEntity, new()）
+  - 表达式树查询（Expression<Func<T, bool>>）
+  - SqlSugar UseTranAsync 事务
+  - 乐观锁（ExecuteCommandWithOptLockAsync）
+
+================================================================================
+【业务目标】
+================================================================================
+
+  将数据访问逻辑从 Service 中抽离，提供统一的 CRUD 与分页能力。
+  通过 UnitOfWork 管理多表操作与事务，为步骤 09 起的业务 Service 提供基础设施。
+
+================================================================================
+【本步涉及的文件】
+================================================================================
+
+  新建（Application）：
+    src/WatchShop.Application/Abstractions/IRepository.cs
+    src/WatchShop.Application/Abstractions/IUnitOfWork.cs
+    src/WatchShop.Application/Common/PagedResult.cs
+
+  新建（Infrastructure）：
+    src/WatchShop.Infrastructure/Persistence/Repository.cs
+    src/WatchShop.Infrastructure/Persistence/UnitOfWork.cs
+
+  修改：
+    src/WatchShop.Infrastructure/DependencyInjection.cs
+
+================================================================================
+【接口设计】
+================================================================================
+
+  IRepository<T>：
+    GetByIdAsync(id)              按 ID 查询（自动过滤已删除）
+    GetPagedAsync(page, pageSize, predicate?)   分页 + 可选条件
+    GetListAsync(predicate?)      列表查询
+    InsertAsync(entity)           插入，自动雪花 ID
+    UpdateAsync(entity)           更新，乐观锁校验
+    SoftDeleteAsync(id)           软删除
+
+  IUnitOfWork：
+    Repository<T>()               获取指定实体仓储（同 Scope 内缓存实例）
+    ExecuteInTransactionAsync(action)   事务包裹
+
+================================================================================
+【核心流程】
+================================================================================
+
+  插入流程：
+    InsertAsync → SnowFlakeSingle.NextId() → CreatedAt=UtcNow → Version=0 → Insert
+
+  更新流程（乐观锁）：
+    UpdateAsync → UpdatedAt=UtcNow
+      → ExecuteCommandWithOptLockAsync(true)
+      → rows==0 时抛 InvalidOperationException（并发冲突）
+
+  软删除流程：
+    SoftDeleteAsync → 查实体 → IsDeleted=true → 更新 IsDeleted/UpdatedAt/Version
+
+  事务流程：
+    ExecuteInTransactionAsync → _db.Ado.UseTranAsync(action)
+
+================================================================================
+【分层职责】
+================================================================================
+
+  Application：
+    IRepository<T>、IUnitOfWork 接口定义
+    PagedResult<T> 分页结果模型
+
+  Infrastructure：
+    Repository<T>：SqlSugar 实现，Query() 默认 .Where(x => !x.IsDeleted)
+    UnitOfWork：仓储工厂 + 事务入口
+
+  DI 注册：
+    services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+================================================================================
+【常见问题】
+================================================================================
+
+  Q: 为什么 Repository 不直接注入 ISqlSugarClient 到 Service？
+  A: 仓储模式隔离 ORM 细节，Service 只依赖 IUnitOfWork，便于测试与替换。
+
+  Q: 乐观锁更新失败怎么处理？
+  A: Repository 抛 InvalidOperationException；步骤 13 会在 Service 层转为 BusinessException。
+
+  Q: UnitOfWork 中 Repository 为何用 Dictionary 缓存？
+  A: 同一请求 Scope 内多次 Repository<T>() 返回同一实例，共享同一 SqlSugar 连接。
+
+  Q: 物理删除如何实现？
+  A: 本步不提供；业务统一走 SoftDeleteAsync。
+
+================================================================================
+【本步未涉及（留给后续步骤）】
+================================================================================
+
+  - 品牌/商品 CRUD API                       → 步骤 09 ~ 10
+  - 分页查询在 Controller 中的使用           → 步骤 09
+  - 软删除/乐观锁的业务层处理                → 步骤 13
+
+================================================================================
+【下一步】
+================================================================================
+
+  → 步骤 09：品牌与分类管理
+    目标：BrandController、CategoryController CRUD API
+    技术：RESTful、Service 层、OperationLogFilter（步骤 15 补充）
+
+================================================================================

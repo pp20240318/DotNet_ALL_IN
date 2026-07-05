@@ -1,0 +1,129 @@
+================================================================================
+步骤 15：操作日志与 Serilog
+================================================================================
+前置条件：完成步骤 06（JWT 鉴权）、步骤 09（业务 Controller 已存在）
+预计耗时：45 ~ 60 分钟
+完成日期：2026-07-05
+
+【验收标准】
+  [✅] OperationLog 实体 + operation_log 表（步骤 07 已建表）
+  [✅] OperationLogService 写入日志
+  [✅] OperationLogFilter 拦截 POST/PUT/DELETE 成功请求
+  [✅] 记录 AdminId、AdminName、Module、Action、RequestPath、IpAddress
+  [✅] 品牌/分类/商品/SKU/订单 Controller 标注 [OperationLogFilter]
+  [✅] Serilog 结构化日志 + UseSerilogRequestLogging
+  [✅] appsettings.json 配置 Serilog MinimumLevel
+  [✅] dotnet build 编译通过
+
+================================================================================
+【本步体验的技术点】（详见 Overview.txt）
+================================================================================
+
+  - Serilog 结构化日志
+  - IAsyncActionFilter / TypeFilterAttribute
+  - 操作审计（Audit Log）
+  - UseSerilogRequestLogging 请求日志
+  - ILogger 与 LogContext
+
+================================================================================
+【业务目标】
+================================================================================
+
+  记录管理员对业务的写操作（增删改），便于审计追溯。
+  同时接入 Serilog 输出结构化请求日志，提升可观测性。
+
+================================================================================
+【本步涉及的文件】
+================================================================================
+
+  新建（Infrastructure）：
+    src/WatchShop.Infrastructure/Services/OperationLogService.cs
+
+  新建（Admin.Api）：
+    src/WatchShop.Admin.Api/Filters/OperationLogFilter.cs
+    src/WatchShop.Admin.Api/Extensions/SerilogExtensions.cs
+
+  修改：
+    src/WatchShop.Admin.Api/Program.cs
+    src/WatchShop.Admin.Api/appsettings.json
+    各业务 Controller（[OperationLogFilter]）
+    各项目 .csproj（Serilog 包）
+
+================================================================================
+【OperationLogFilter 行为】
+================================================================================
+
+  触发条件：
+    HTTP Method 为 POST / PUT / DELETE
+    Action 执行成功（无 Exception，StatusCode 2xx）
+
+  不记录：GET 查询、失败请求（有 Exception 时跳过）
+
+  写入字段：
+    AdminId     从 JWT Claim NameIdentifier 解析
+    AdminName   User.Identity.Name
+    Module      Controller 名（如 Brand）
+    Action      Action 名（如 Create）
+    RequestPath / RequestMethod / IpAddress
+    IsSuccess   是否 2xx
+    Message     "操作成功"
+
+================================================================================
+【Serilog 配置】
+================================================================================
+
+  Program.cs：
+    builder.AddSerilogLogging();
+    app.UseSerilogRequestLogging();
+
+  appsettings.json：
+    "Serilog": {
+      "MinimumLevel": {
+        "Default": "Information",
+        "Override": { "Microsoft.AspNetCore": "Warning" }
+      }
+    }
+
+  输出：Console；可按需扩展 File / Seq Sink。
+
+================================================================================
+【NuGet 包】
+================================================================================
+
+  WatchShop.Admin.Api：
+    Serilog.AspNetCore
+    Serilog.Sinks.Console
+    Serilog.Settings.Configuration
+
+================================================================================
+【常见问题】
+================================================================================
+
+  Q: GET 请求为什么不记日志？
+  A: 读操作量大，审计通常只关注写操作；可按需扩展 Filter 条件。
+
+  Q: AdminId 为 null？
+  A: 匿名请求或未在 JWT 中写入 NameIdentifier Claim；登录 Token 正常则不为 null。
+
+  Q: 日志写库失败会影响 API？
+  A: Filter 在 Action 成功后写库；若写库异常会抛错，可按需 try-catch 降级。
+
+  Q: Serilog 与内置 Logging 关系？
+  A: UseSerilog 替换默认 Provider；ILogger 仍可用，底层走 Serilog。
+
+================================================================================
+【本步未涉及（留给后续步骤）】
+================================================================================
+
+  - 操作日志查询 API                           → 后续按需
+  - 日志脱敏、ELK 接入                         → 生产运维扩展
+
+================================================================================
+【下一步】
+================================================================================
+
+  → 步骤 16：消息队列与事件驱动
+    目标：ChannelEventPublisher、OrderCreatedEvent 消费
+    技术：System.Threading.Channels、BackgroundService
+
+================================================================================

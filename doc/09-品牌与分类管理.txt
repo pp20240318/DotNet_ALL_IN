@@ -1,0 +1,116 @@
+================================================================================
+步骤 09：品牌与分类管理
+================================================================================
+前置条件：完成步骤 08（Repository、UnitOfWork 已就绪）
+预计耗时：45 ~ 60 分钟
+完成日期：2026-07-05
+
+【验收标准】
+  [✅] IBrandService / ICategoryService 接口与实现
+  [✅] BrandController、CategoryController 完整 CRUD
+  [✅] 分页列表 GET /brands、GET /categories
+  [✅] 所有接口需 JWT 鉴权（[Authorize]）
+  [✅] 种子数据可查询：Rolex、Omega / 机械表、石英表
+  [✅] 删除为软删除，再次 GET 查不到
+  [✅] dotnet build 编译通过
+
+================================================================================
+【本步体验的技术点】（详见 Overview.txt）
+================================================================================
+
+  - RESTful API 设计
+  - Controller → Service → Repository 分层调用
+  - 分页查询（PagedResult）
+  - JWT 鉴权保护业务接口
+  - ApiControllerBase 统一响应
+
+================================================================================
+【业务目标】
+================================================================================
+
+  实现管理后台品牌与分类的基础 CRUD，为商品管理（步骤 10）提供品牌/分类下拉数据。
+  种子数据 Rolex、Omega 和 机械表、石英表 可在 Swagger 中直接查询验证。
+
+================================================================================
+【本步涉及的文件】
+================================================================================
+
+  新建（Application）：
+    src/WatchShop.Application/Abstractions/IBrandService.cs
+    src/WatchShop.Application/Abstractions/ICategoryService.cs
+
+  新建（Infrastructure）：
+    src/WatchShop.Infrastructure/Services/BrandService.cs
+    src/WatchShop.Infrastructure/Services/CategoryService.cs
+
+  新建（Admin.Api）：
+    src/WatchShop.Admin.Api/Controllers/BrandController.cs
+    src/WatchShop.Admin.Api/Controllers/CategoryController.cs
+
+  修改：
+    src/WatchShop.Infrastructure/DependencyInjection.cs
+
+================================================================================
+【API 接口】（均需 Bearer Token）
+================================================================================
+
+  品牌 /brands：
+    GET    /brands              分页列表（page, pageSize）
+    GET    /brands/{id}         详情
+    POST   /brands              创建
+    PUT    /brands/{id}         更新
+    DELETE /brands/{id}         软删除
+
+  分类 /categories：
+    GET    /categories          分页列表
+    GET    /categories/{id}     详情
+    POST   /categories          创建
+    PUT    /categories/{id}     更新
+    DELETE /categories/{id}     软删除
+
+  创建品牌示例：
+    POST /brands
+    { "name": "Tudor", "description": "帝舵", "sortOrder": 2, "isEnabled": true }
+
+  成功响应：
+    { "code": 0, "message": "创建成功", "data": { "id": 1234567890 } }
+
+================================================================================
+【Swagger 测试步骤】
+================================================================================
+
+  1. POST /auth/login → 获取 Token → Authorize
+  2. GET /brands?page=1&pageSize=10 → 应看到 Rolex、Omega
+  3. GET /categories → 应看到 机械表、石英表
+  4. POST /brands 创建新品牌 → 返回 id
+  5. DELETE /brands/{id} → GET 同 id 返回 404
+
+================================================================================
+【常见问题】
+================================================================================
+
+  Q: 401 Unauthorized？
+  A: 先登录获取 Token，Swagger Authorize 填入 Bearer {token}。
+
+  Q: 删除后数据库还有记录？
+  A: 软删除，IsDeleted=true；Repository 查询自动过滤。
+
+  Q: 品牌名重复校验？
+  A: 当前未做唯一约束；可按需在 Service 层补充。
+
+================================================================================
+【本步未涉及（留给后续步骤）】
+================================================================================
+
+  - 商品 CRUD 及品牌/分类关联校验          → 步骤 10
+  - 操作日志记录                           → 步骤 15
+
+================================================================================
+【下一步】
+================================================================================
+
+  → 步骤 10：商品管理 CRUD
+    目标：ProductController、上下架、条件分页查询
+    技术：ProductStatus 枚举、关联查询
+
+================================================================================

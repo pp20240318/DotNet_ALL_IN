@@ -14,6 +14,10 @@ public static class DependencyInjection
             configuration.GetSection(DatabaseOptions.SectionName));
         services.Configure<JwtOptions>(
             configuration.GetSection(JwtOptions.SectionName));
+        services.Configure<RedisOptions>(
+            configuration.GetSection(RedisOptions.SectionName));
+        services.Configure<OrderOptions>(
+            configuration.GetSection(OrderOptions.SectionName));
 
         return services;
     }

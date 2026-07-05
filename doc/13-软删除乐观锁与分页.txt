@@ -1,0 +1,132 @@
+================================================================================
+步骤 13：软删除、乐观锁与分页
+================================================================================
+前置条件：完成步骤 08 ~ 12（Repository 与各 CRUD 已使用上述机制）
+预计耗时：30 ~ 45 分钟
+完成日期：2026-07-05
+
+【验收标准】
+  [✅] BaseEntity.IsDeleted 全局软删除，查询默认过滤
+  [✅] BaseEntity.Version + SugarColumn(IsEnableUpdateVersionValidation)
+  [✅] UpdateAsync 使用 ExecuteCommandWithOptLockAsync，冲突时抛异常
+  [✅] PagedResult<T> 统一分页结构（Page、PageSize、Total、Items）
+  [✅] 各列表 API 返回 PagedResult 格式
+  [✅] 更新请求 DTO 携带 Version 字段
+  [✅] dotnet build 编译通过
+
+================================================================================
+【本步体验的技术点】（详见 Overview.txt）
+================================================================================
+
+  - 软删除（Soft Delete）
+  - 乐观锁 / 版本号（Optimistic Concurrency）
+  - SqlSugar ExecuteCommandWithOptLockAsync
+  - 分页模型 PagedResult<T>
+  - RefAsync<int> 总数统计
+
+================================================================================
+【业务目标】
+================================================================================
+
+  梳理并巩固贯穿步骤 08 ~ 12 的三项横切能力：软删除保数据可追溯、
+  乐观锁防并发覆盖、统一分页格式。理解其在 Repository 与各 Service 中的协作。
+
+================================================================================
+【本步涉及的文件】（核心，已在前期步骤实现）
+================================================================================
+
+  src/WatchShop.Domain/Entities/BaseEntity.cs
+  src/WatchShop.Application/Common/PagedResult.cs
+  src/WatchShop.Infrastructure/Persistence/Repository.cs
+  各 Service 更新时传递 request.Version
+
+================================================================================
+【软删除机制】
+================================================================================
+
+  BaseEntity.IsDeleted = false（默认）
+
+  Repository.Query()：
+    默认 .Where(x => !x.IsDeleted)
+    includeDeleted=true 时可查已删记录
+
+  SoftDeleteAsync(id)：
+    IsDeleted = true，更新 IsDeleted / UpdatedAt / Version
+    非 DELETE FROM，数据仍保留
+
+  DELETE API（如 DELETE /brands/{id}）实际调用 SoftDeleteAsync。
+
+================================================================================
+【乐观锁机制】
+================================================================================
+
+  BaseEntity.Version：
+    [SugarColumn(IsEnableUpdateVersionValidation = true)]
+    每次 UpdateAsync 成功后 Version 自动 +1
+
+  UpdateAsync 流程：
+    entity.UpdatedAt = UtcNow
+    ExecuteCommandWithOptLockAsync(true)
+    rows == 0 → InvalidOperationException("更新失败，数据可能已被其他人修改")
+
+  客户端用法：
+    GET 详情拿到 version → PUT 更新时原样传回 version
+    若期间他人已更新，version 不匹配，更新失败
+
+================================================================================
+【分页机制】
+================================================================================
+
+  PagedResult<T>：
+    Page      当前页（从 1 开始）
+    PageSize  每页条数
+    Total     总记录数
+    Items     当前页数据
+
+  Repository.GetPagedAsync：
+    RefAsync<int> total
+    OrderBy CreatedAt Desc
+    ToPageListAsync(page, pageSize, total)
+
+  API 响应示例：
+    {
+      "code": 0,
+      "message": "success",
+      "data": {
+        "page": 1, "pageSize": 10, "total": 25,
+        "items": [ ... ]
+      }
+    }
+
+================================================================================
+【常见问题】
+================================================================================
+
+  Q: 软删除后唯一索引冲突？
+  A: 若 Name 有唯一索引，软删后同名无法再建；可加 (Name, IsDeleted) 联合唯一或改名。
+
+  Q: 乐观锁和数据库行锁区别？
+  A: 乐观锁无锁读，更新时比对 Version；适合读多写少。行锁适合强一致高频写。
+
+  Q: page 从 0 还是 1 开始？
+  A: 本项目从 1 开始，Controller 默认 page=1。
+
+  Q: 分页 Total 为 0 但 Items 有数据？
+  A: 检查 RefAsync 是否正确传给 ToPageListAsync。
+
+================================================================================
+【本步未涉及（留给后续步骤）】
+================================================================================
+
+  - 悲观锁、分布式锁                         → 步骤 14 Redis 扩展
+  - 全局 QueryFilter 自动过滤 IsDeleted      → 当前在 Repository 手动过滤
+
+================================================================================
+【下一步】
+================================================================================
+
+  → 步骤 14：Redis 缓存
+    目标：商品详情缓存、Redis.Enabled=false 时用内存缓存
+    技术：IDistributedCache、CacheService
+
+================================================================================

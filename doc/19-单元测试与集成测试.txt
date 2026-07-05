@@ -1,0 +1,127 @@
+================================================================================
+步骤 19：单元测试与集成测试
+================================================================================
+前置条件：完成步骤 04（ApiResult）、步骤 06（PasswordHasher）、步骤 18（/health）
+预计耗时：45 ~ 60 分钟
+完成日期：2026-07-05
+
+【验收标准】
+  [✅] tests/WatchShop.Tests 测试项目（net8.0、xUnit）
+  [✅] ApiResultTests 验证 Ok/Fail 工厂方法
+  [✅] PasswordHasherTests 验证 Hash/Verify（Admin@123）
+  [✅] HealthEndpointTests 使用 WebApplicationFactory 测 /health
+  [✅] Program.Partial.cs 暴露 partial Program 供集成测试
+  [✅] dotnet test 全部通过
+
+================================================================================
+【本步体验的技术点】（详见 Overview.txt）
+================================================================================
+
+  - xUnit 单元测试框架
+  - WebApplicationFactory 集成测试
+  - IClassFixture 测试夹具
+  - 测试项目引用与被测项目隔离
+  - dotnet test / coverlet 覆盖率（可选）
+
+================================================================================
+【业务目标】
+================================================================================
+
+  为核心工具类与 API 端点建立自动化测试基线，保证重构时不回归。
+  集成测试验证应用能正常启动并响应 /health。
+
+================================================================================
+【本步涉及的文件】
+================================================================================
+
+  新建（tests）：
+    tests/WatchShop.Tests/WatchShop.Tests.csproj
+    tests/WatchShop.Tests/ApiResultTests.cs
+    tests/WatchShop.Tests/PasswordHasherTests.cs
+    tests/WatchShop.Tests/HealthEndpointTests.cs
+
+  修改：
+    src/WatchShop.Admin.Api/Program.Partial.cs   （public partial class Program;）
+    WatchShop.slnx                               （加入测试项目）
+
+================================================================================
+【测试用例一览】
+================================================================================
+
+  ApiResultTests：
+    Ok_Should_Set_Success_Code
+      → ApiResult<string>.Ok("data") → Code=0, Message="success"
+    Fail_Should_Set_Error_Code
+      → ApiResult<object>.Fail(404, "not found") → Code=404
+
+  PasswordHasherTests：
+    Hash_And_Verify_Should_Work
+      → Hash("Admin@123") 可 Verify 通过，错误密码 Verify 失败
+
+  HealthEndpointTests：
+    Health_Endpoint_Should_Return_Success
+      → WebApplicationFactory<Program> → GET /health → EnsureSuccessStatusCode
+
+================================================================================
+【项目引用】
+================================================================================
+
+  WatchShop.Tests 引用：
+    WatchShop.Application
+    WatchShop.Infrastructure
+    WatchShop.Admin.Api
+
+  NuGet：
+    xunit / xunit.runner.visualstudio
+    Microsoft.NET.Test.Sdk
+    Microsoft.AspNetCore.Mvc.Testing 8.0.11
+    coverlet.collector（可选覆盖率）
+
+================================================================================
+【运行测试】
+================================================================================
+
+  dotnet test tests/WatchShop.Tests/WatchShop.Tests.csproj
+
+  集成测试需 MySQL 可达（与 appsettings 一致），否则 /health 可能 503。
+  CI 环境可改用 Testcontainers 或 Mock HealthCheck（后续扩展）。
+
+================================================================================
+【Program.Partial.cs 说明】
+================================================================================
+
+  .NET 6+ 顶级语句 Program.cs 默认 internal，WebApplicationFactory 无法引用。
+  添加 public partial class Program; 使测试项目能 WebApplicationFactory<Program>。
+
+================================================================================
+【常见问题】
+================================================================================
+
+  Q: HealthEndpointTests 失败 503？
+  A: 本地 MySQL 未启动或连接字符串错误；先确保 dotnet run 时 /health 正常。
+
+  Q: 为什么不 Mock 数据库？
+  A: 本步最小集成测试验证真实启动链；Service 单测可后续加 Moq。
+
+  Q: dotnet test 找不到 Program？
+  A: 确认 Program.Partial.cs 存在且为 public partial class Program。
+
+  Q: 如何看覆盖率？
+  A: dotnet test --collect:"XPlat Code Coverage"
+
+================================================================================
+【本步未涉及（留给后续步骤）】
+================================================================================
+
+  - Service 层 Moq 单测                             → 后续扩展
+  - 鉴权 API 集成测试（带 Token）                   → 后续扩展
+
+================================================================================
+【下一步】
+================================================================================
+
+  → 步骤 20：Docker 部署与多环境
+    目标：Dockerfile、docker-compose、Production 配置
+    技术：多阶段构建、环境变量
+
+================================================================================

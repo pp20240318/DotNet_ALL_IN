@@ -1,0 +1,135 @@
+================================================================================
+步骤 07：领域实体与 Code First
+================================================================================
+前置条件：完成步骤 06（Admin 实体、DbInitializer 已建立）
+预计耗时：45 ~ 60 分钟
+完成日期：2026-07-05
+
+【验收标准】
+  [✅] BaseEntity 定义 Id / IsDeleted / Version / CreatedAt / UpdatedAt
+  [✅] Brand、Category、Product、ProductSku、ShopOrder、OrderItem、OperationLog 实体
+  [✅] 启动时 Code First 自动建表（InitTables）
+  [✅] 雪花 ID（SnowFlakeSingle）生成主键
+  [✅] 种子数据：品牌 Rolex、Omega；分类 机械表、石英表；3 个示例商品
+  [✅] dotnet build 编译通过
+
+================================================================================
+【本步体验的技术点】（详见 Overview.txt）
+================================================================================
+
+  - Code First 建表
+  - SugarTable / SugarColumn 特性映射
+  - 雪花 ID（Snowflake ID）
+  - 实体继承（BaseEntity）
+  - 数据库初始化与种子数据
+  - 枚举映射（ProductStatus、OrderStatus）
+
+================================================================================
+【业务目标】
+================================================================================
+
+  建立手表商城核心业务表结构：品牌、分类、商品、SKU、订单、操作日志。
+  启动时自动建表并写入演示数据，为步骤 08 起的 Repository 与 CRUD API 提供数据模型。
+
+================================================================================
+【本步涉及的文件】
+================================================================================
+
+  新建（Domain/Entities）：
+    src/WatchShop.Domain/Entities/BaseEntity.cs
+    src/WatchShop.Domain/Entities/Brand.cs
+    src/WatchShop.Domain/Entities/Category.cs
+    src/WatchShop.Domain/Entities/Product.cs
+    src/WatchShop.Domain/Entities/ProductSku.cs
+    src/WatchShop.Domain/Entities/ShopOrder.cs
+    src/WatchShop.Domain/Entities/OrderItem.cs
+    src/WatchShop.Domain/Entities/OperationLog.cs
+
+  新建（Domain/Enums）：
+    src/WatchShop.Domain/Enums/ProductStatus.cs
+    src/WatchShop.Domain/Enums/OrderStatus.cs
+
+  修改：
+    src/WatchShop.Infrastructure/Persistence/DbInitializer.cs
+
+================================================================================
+【实体一览】
+================================================================================
+
+  BaseEntity（抽象基类）
+    Id          long    主键，雪花 ID
+    IsDeleted   bool    软删除标记
+    Version     int     乐观锁版本号
+    CreatedAt   DateTime
+    UpdatedAt   DateTime?
+
+  Brand       → brand 表       品牌（Name、LogoUrl、Description、SortOrder、IsEnabled）
+  Category    → category 表    分类（Name、SortOrder、IsEnabled）
+  Product     → product 表     商品（Name、BrandId、CategoryId、Price、Status、CoverImage）
+  ProductSku  → product_sku 表 SKU（ProductId、SkuCode、SpecJson、Price、Stock）
+  ShopOrder   → shop_order 表  订单（OrderNo、Status、TotalAmount、收货信息、各状态时间戳）
+  OrderItem   → order_item 表  订单明细（OrderId、ProductId、SkuId、Price、Quantity）
+  OperationLog→ operation_log 表 操作日志（AdminId、Module、Action、RequestPath 等）
+
+================================================================================
+【DbInitializer 种子数据】
+================================================================================
+
+  品牌：Rolex（瑞士劳力士）、Omega（瑞士欧米茄）
+  分类：机械表、石英表
+  商品：
+    Rolex Submariner  → Rolex / 机械表  ¥88000
+    Omega Seamaster   → Omega / 机械表  ¥52000
+    Casio Classic     → Omega / 石英表  ¥899
+
+  种子逻辑：检测 brand 表无数据时一次性插入；admin 种子逻辑不变（admin / Admin@123）。
+
+================================================================================
+【核心概念】
+================================================================================
+
+  Code First：
+    _db.CodeFirst.InitTables(typeof(Admin), typeof(Brand), ...) 启动时自动建表。
+
+  雪花 ID：
+    SnowFlakeSingle.Instance.NextId() 生成全局唯一 long 型主键，适合分布式场景。
+
+  BaseEntity 继承：
+    所有业务实体继承 BaseEntity，统一 Id、软删除、乐观锁、审计字段。
+
+  表名映射：
+    [SugarTable("brand")] 指定数据库表名（小写蛇形）。
+
+================================================================================
+【常见问题】
+================================================================================
+
+  Q: 表已存在但结构变了怎么办？
+  A: SqlSugar Code First 不会自动删列；开发环境可 DROP TABLE 后重启，或手动 ALTER。
+
+  Q: 为什么 Id 用 long 不用 int？
+  A: 雪花 ID 为 64 位 long，避免自增 ID 在分布式/分库分表时冲突。
+
+  Q: ProductStatus 默认值是什么？
+  A: 实体默认 Draft；种子商品设为 OnSale（上架）。
+
+  Q: 种子数据重复插入？
+  A: DbInitializer 先检测 brand 表是否有记录，有则跳过 SeedCatalogData。
+
+================================================================================
+【本步未涉及（留给后续步骤）】
+================================================================================
+
+  - 通用 Repository 抽象                    → 步骤 08
+  - CRUD API 接口                           → 步骤 09 ~ 12
+  - 软删除过滤、乐观锁更新                  → 步骤 13
+
+================================================================================
+【下一步】
+================================================================================
+
+  → 步骤 08：Repository 与 UnitOfWork
+    目标：通用仓储接口 + 事务封装
+    技术：Repository Pattern、Unit of Work、UseTranAsync
+
+================================================================================
