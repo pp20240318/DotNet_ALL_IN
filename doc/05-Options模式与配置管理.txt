@@ -1,0 +1,294 @@
+================================================================================
+步骤 05：Options 模式与配置管理
+================================================================================
+前置条件：完成步骤 04（统一响应、全局异常已就绪）
+预计耗时：30 ~ 45 分钟
+完成日期：2026-07-05
+
+【验收标准】
+  [✅] DatabaseOptions、JwtOptions 定义在 Application/Options
+  [✅] AddApplication() 通过 Configure<T> 绑定 appsettings 节点
+  [✅] Infrastructure 用 IOptions<DatabaseOptions> 构建连接字符串
+  [✅] appsettings.json 使用结构化 Database / Jwt 节点
+  [✅] Admin.Api 启用 UserSecretsId
+  [✅] HealthController 注入 IOptions<DatabaseOptions> 读取库名
+  [✅] GET /health/db 仍正常返回
+  [✅] dotnet build 编译通过
+
+================================================================================
+【本步体验的技术点】（详见 Overview.txt）
+================================================================================
+
+  - 选项模式（Options Pattern）
+  - IOptions<T> / IOptionsSnapshot<T> / IOptionsMonitor<T>
+  - appsettings.json 配置
+  - 用户机密（User Secrets）
+  - 多环境配置（Development / Production）
+  - 强类型配置 vs 字符串键读取
+
+================================================================================
+【业务目标】
+================================================================================
+
+  将步骤 02 中直接读取 ConnectionStrings 的方式，改为强类型 Options 配置。
+  数据库、JWT 等配置集中管理，开发/生产环境可分别覆盖，敏感信息可用 User Secrets
+  隔离，不再硬编码在代码里。
+
+================================================================================
+【改造前后对比】
+================================================================================
+
+  步骤 04（改造前）— 读取配置：
+    configuration.GetConnectionString("Default")   // 字符串键，无编译期检查
+
+  步骤 05（改造后）— 读取配置：
+    IOptions<DatabaseOptions>.Value.BuildConnectionString()   // 强类型，IntelliSense
+
+  appsettings.json 变化：
+    改造前：ConnectionStrings:Default = "Server=...;Port=...;..."
+    改造后：Database: { Server, Port, Database, User, Password } 结构化节点
+
+================================================================================
+【本步涉及的文件】
+================================================================================
+
+  新建：
+    src/WatchShop.Application/Options/DatabaseOptions.cs
+    src/WatchShop.Application/Options/JwtOptions.cs
+    src/WatchShop.Application/DependencyInjection.cs
+
+  修改：
+    src/WatchShop.Infrastructure/DependencyInjection.cs
+    src/WatchShop.Admin.Api/Program.cs
+    src/WatchShop.Admin.Api/appsettings.json
+    src/WatchShop.Admin.Api/Controllers/HealthController.cs
+    src/WatchShop.Application/WatchShop.Application.csproj
+    src/WatchShop.Infrastructure/WatchShop.Infrastructure.csproj
+    src/WatchShop.Admin.Api/WatchShop.Admin.Api.csproj
+
+================================================================================
+【参考代码】
+================================================================================
+
+── 1. Application/Options/DatabaseOptions.cs ───────────
+
+  namespace WatchShop.Application.Options;
+
+  public class DatabaseOptions
+  {
+      public const string SectionName = "Database";
+
+      public string Server { get; set; } = "localhost";
+      public int Port { get; set; } = 3306;
+      public string Database { get; set; } = string.Empty;
+      public string User { get; set; } = string.Empty;
+      public string Password { get; set; } = string.Empty;
+
+      public string BuildConnectionString()
+      {
+          return $"Server={Server};Port={Port};Database={Database};User={User};Password={Password};SslMode=None;";
+      }
+  }
+
+── 2. Application/Options/JwtOptions.cs ────────────────
+
+  namespace WatchShop.Application.Options;
+
+  public class JwtOptions
+  {
+      public const string SectionName = "Jwt";
+
+      public string Issuer { get; set; } = string.Empty;
+      public string Audience { get; set; } = string.Empty;
+      public string SecretKey { get; set; } = string.Empty;
+      public int ExpirationMinutes { get; set; } = 120;
+  }
+
+  说明：JwtOptions 本步只注册，步骤 06 管理员认证时实际使用。
+
+── 3. Application/DependencyInjection.cs ───────────────
+
+  using Microsoft.Extensions.Configuration;
+  using Microsoft.Extensions.DependencyInjection;
+  using WatchShop.Application.Options;
+
+  namespace WatchShop.Application;
+
+  public static class DependencyInjection
+  {
+      public static IServiceCollection AddApplication(
+          this IServiceCollection services,
+          IConfiguration configuration)
+      {
+          services.Configure<DatabaseOptions>(
+              configuration.GetSection(DatabaseOptions.SectionName));
+          services.Configure<JwtOptions>(
+              configuration.GetSection(JwtOptions.SectionName));
+
+          return services;
+      }
+  }
+
+── 4. Infrastructure/DependencyInjection.cs（关键变化）─
+
+  不再接收 IConfiguration 参数，改为从 DI 容器取 IOptions<DatabaseOptions>：
+
+  services.AddSingleton<ISqlSugarClient>(sp =>
+  {
+      var dbOptions = sp.GetRequiredService<IOptions<DatabaseOptions>>().Value;
+      var connectionString = dbOptions.BuildConnectionString();
+      // ...
+  });
+
+── 5. Program.cs ───────────────────────────────────────
+
+  builder.Services.AddApplication(builder.Configuration);
+  builder.Services.AddInfrastructure();
+
+  顺序：先 AddApplication（注册 Options），再 AddInfrastructure（消费 Options）。
+
+── 6. appsettings.json ─────────────────────────────────
+
+  {
+    "Database": {
+      "Server": "localhost",
+      "Port": 3306,
+      "Database": "dotnet_all_in1",
+      "User": "dotnet_all_in2",
+      "Password": "dotnet_all_in3"
+    },
+    "Jwt": {
+      "Issuer": "WatchShop.Admin",
+      "Audience": "WatchShop.Admin.Client",
+      "SecretKey": "dev-only-change-in-production-min-32-chars!!",
+      "ExpirationMinutes": 120
+    },
+    ...
+  }
+
+── 7. Admin.Api.csproj — 启用 User Secrets ─────────────
+
+  <UserSecretsId>watchshop-admin-api-dev</UserSecretsId>
+
+── 8. HealthController — 注入 IOptions ─────────────────
+
+  public HealthController(
+      IDatabaseHealthService healthService,
+      IOptions<DatabaseOptions> dbOptions)
+  {
+      _healthService = healthService;
+      _dbOptions = dbOptions.Value;
+  }
+
+  return Success(new { database = _dbOptions.Database, mysqlVersion = version });
+
+================================================================================
+【IOptions 三种接口对比】
+================================================================================
+
+  IOptions<T>
+    - 单例，应用启动时读取一次，之后不变
+    - 适用：DatabaseOptions、JwtOptions 等启动后不变的配置
+    - 本步使用
+
+  IOptionsSnapshot<T>
+    - Scoped，每个请求读一次
+    - 适用：配置可能在运行中变更（配合 IConfiguration reload）
+
+  IOptionsMonitor<T>
+    - Singleton，但支持 OnChange 监听配置热更新
+    - 适用：需要实时响应配置变更的场景
+
+  本项目管理后台：IOptions<T> 足够，步骤 05 先用这个。
+
+================================================================================
+【User Secrets 用法（开发环境）】
+================================================================================
+
+  敏感配置（密码、JWT SecretKey）不应提交到 Git。
+  开发环境用 User Secrets 覆盖 appsettings.json 中的值：
+
+  初始化（csproj 已有 UserSecretsId 则跳过）：
+    dotnet user-secrets init --project .\src\WatchShop.Admin.Api\WatchShop.Admin.Api.csproj
+
+  设置数据库密码：
+    dotnet user-secrets set "Database:Password" "你的密码" ^
+      --project .\src\WatchShop.Admin.Api\WatchShop.Admin.Api.csproj
+
+  设置 JWT 密钥：
+    dotnet user-secrets set "Jwt:SecretKey" "your-production-secret-key-32chars" ^
+      --project .\src\WatchShop.Admin.Api\WatchShop.Admin.Api.csproj
+
+  查看已设置的 secrets：
+    dotnet user-secrets list --project .\src\WatchShop.Admin.Api\WatchShop.Admin.Api.csproj
+
+  优先级（高 → 低）：
+    环境变量 > User Secrets > appsettings.{Environment}.json > appsettings.json
+
+================================================================================
+【配置读取数据流】
+================================================================================
+
+  appsettings.json（Database 节点）
+        ↓
+  AddApplication → services.Configure<DatabaseOptions>(...)
+        ↓
+  DI 容器注册 IOptions<DatabaseOptions>
+        ↓
+  Infrastructure 创建 SqlSugarClient 时：
+    sp.GetRequiredService<IOptions<DatabaseOptions>>().Value
+        ↓
+  dbOptions.BuildConnectionString() → MySQL 连接
+
+================================================================================
+【NuGet 包变化】
+================================================================================
+
+  WatchShop.Application：
+    + Microsoft.Extensions.Options.ConfigurationExtensions 8.0.0
+
+  WatchShop.Infrastructure：
+    + Microsoft.Extensions.Options 8.0.2
+    - Microsoft.Extensions.Configuration（不再需要直接读 IConfiguration）
+
+================================================================================
+【常见问题】
+================================================================================
+
+  Q: Configure<T> 和直接 new DatabaseOptions 有什么区别？
+  A: Configure 从 IConfiguration 自动绑定 JSON 节点到对象属性，支持多环境覆盖和
+     User Secrets，且注册到 DI 容器供全局注入。
+
+  Q: 为什么 Options 类放 Application 层？
+  A: Application 层定义「需要什么配置」，Infrastructure / Api 层消费；Domain 层
+     不应依赖配置细节。
+
+  Q: AddApplication 必须在 AddInfrastructure 之前吗？
+  A: 是。Infrastructure 注册 SqlSugar 时需要 IOptions<DatabaseOptions> 已就绪。
+
+  Q: ConnectionStrings 节点还能用吗？
+  A: 本步已迁移到 Database 结构化节点；若遗留 ConnectionStrings 可删除，避免混淆。
+
+  Q: 生产环境怎么配密码？
+  A: 用环境变量 Database__Password 或部署平台的密钥管理，不要写进 appsettings.json。
+
+================================================================================
+【本步未涉及（留给后续步骤）】
+================================================================================
+
+  - JwtOptions 实际用于 Token 签发与验签          → 步骤 06
+  - IOptionsMonitor 配置热更新                    → 按需
+  - 配置校验（ValidateOnStart / DataAnnotations） → 按需增强
+
+================================================================================
+【下一步】
+================================================================================
+
+  → 步骤 06：管理员认证与 JWT
+    目标：管理员登录、Token 签发、接口鉴权
+    技术：JWT、Authorization Filter、哈希加盐（密码存储）
+    会用到本步注册的 JwtOptions
+
+  完成步骤 06 并验收通过后，确认再生成 doc/06-管理员认证与JWT.txt
+
+================================================================================
