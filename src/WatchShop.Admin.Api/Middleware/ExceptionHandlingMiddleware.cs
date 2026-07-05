@@ -26,8 +26,14 @@ public class ExceptionHandlingMiddleware
         }
         catch (BusinessException ex)
         {
-            // 可预期的业务错误 → 400
-            await WriteErrorAsync(context, HttpStatusCode.BadRequest, ex.Code, ex.Message);
+            var httpStatus = ex.Code switch
+            {
+                ApiResultCode.Unauthorized => HttpStatusCode.Unauthorized,
+                ApiResultCode.Forbidden => HttpStatusCode.Forbidden,
+                ApiResultCode.NotFound => HttpStatusCode.NotFound,
+                _ => HttpStatusCode.BadRequest
+            };
+            await WriteErrorAsync(context, httpStatus, ex.Code, ex.Message);
         }
         catch (Exception ex)
         {

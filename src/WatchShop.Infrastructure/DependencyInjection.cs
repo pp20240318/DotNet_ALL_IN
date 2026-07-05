@@ -3,6 +3,8 @@ using Microsoft.Extensions.Options;
 using SqlSugar;
 using WatchShop.Application.Abstractions;
 using WatchShop.Application.Options;
+using WatchShop.Infrastructure.Persistence;
+using WatchShop.Infrastructure.Security;
 using WatchShop.Infrastructure.Services;
 
 namespace WatchShop.Infrastructure;
@@ -38,8 +40,10 @@ public static class DependencyInjection
             });
         });
 
-        // Scoped：每个 HTTP 请求一个实例（常规业务 Service 用这个）
+        services.AddSingleton<JwtTokenService>();
+        services.AddScoped<DbInitializer>();
         services.AddScoped<IDatabaseHealthService, DatabaseHealthService>();
+        services.AddScoped<IAuthService, AuthService>();
 
         return services;
     }

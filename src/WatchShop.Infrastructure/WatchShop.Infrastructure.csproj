@@ -7,13 +7,17 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.2" />
+    <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.3.0" />
     <PackageReference Include="MySqlConnector" Version="2.6.1" />
     <PackageReference Include="SqlSugarCore" Version="5.1.4.216" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.3.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\WatchShop.Application\WatchShop.Application.csproj" />
+    <ProjectReference Include="..\WatchShop.Domain\WatchShop.Domain.csproj" />
   </ItemGroup>
 
 </Project>

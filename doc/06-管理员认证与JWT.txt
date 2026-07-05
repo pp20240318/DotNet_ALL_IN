@@ -1,0 +1,244 @@
+================================================================================
+步骤 06：管理员认证与 JWT
+================================================================================
+前置条件：完成步骤 05（JwtOptions 已注册、Options 模式已建立）
+预计耗时：60 ~ 90 分钟
+完成日期：2026-07-05
+
+【验收标准】
+  [✅] Admin 实体 + Code First 自动建表 admin
+  [✅] 启动时种子管理员：admin / Admin@123
+  [✅] POST /auth/login 返回 JWT Token
+  [✅] GET /auth/me 需要 Token，返回当前管理员信息
+  [✅] 密码 BCrypt 加盐存储，不明文
+  [✅] Swagger 支持 Authorize 按钮输入 Bearer Token
+  [✅] 未登录访问 /auth/me 返回统一格式 401
+  [✅] dotnet build 编译通过
+
+================================================================================
+【本步体验的技术点】（详见 Overview.txt）
+================================================================================
+
+  - JWT（JSON Web Token）
+  - JWT 签名与验签
+  - 加盐（BCrypt）
+  - Authorization Filter / [Authorize]
+  - Code First 建表
+  - 数据库迁移与初始化（种子数据）
+  - Swagger Bearer 认证配置
+
+================================================================================
+【业务目标】
+================================================================================
+
+  实现管理后台登录认证：管理员用用户名密码登录获取 JWT，后续请求携带 Token
+  访问受保护接口。为步骤 09 起的品牌/商品/订单等 CRUD 接口提供鉴权基础。
+
+================================================================================
+【本步涉及的文件】
+================================================================================
+
+  新建（Domain）：
+    src/WatchShop.Domain/Entities/Admin.cs
+
+  新建（Application）：
+    src/WatchShop.Application/Abstractions/IAuthService.cs
+    src/WatchShop.Application/Dtos/Auth/LoginRequest.cs
+    src/WatchShop.Application/Dtos/Auth/LoginResponse.cs
+    src/WatchShop.Application/Dtos/Auth/AdminProfileResponse.cs
+
+  新建（Infrastructure）：
+    src/WatchShop.Infrastructure/Security/PasswordHasher.cs
+    src/WatchShop.Infrastructure/Security/JwtTokenService.cs
+    src/WatchShop.Infrastructure/Services/AuthService.cs
+    src/WatchShop.Infrastructure/Persistence/DbInitializer.cs
+
+  新建（Admin.Api）：
+    src/WatchShop.Admin.Api/Controllers/AuthController.cs
+    src/WatchShop.Admin.Api/Extensions/JwtAuthenticationExtensions.cs
+    src/WatchShop.Admin.Api/Extensions/DatabaseInitializerExtensions.cs
+
+  修改：
+    src/WatchShop.Admin.Api/Program.cs
+    src/WatchShop.Admin.Api/Middleware/ExceptionHandlingMiddleware.cs
+    src/WatchShop.Infrastructure/DependencyInjection.cs
+    各项目 .csproj（NuGet 包）
+
+================================================================================
+【API 接口】
+================================================================================
+
+  POST /auth/login（匿名）
+    请求：{ "username": "admin", "password": "Admin@123" }
+    成功响应：
+      {
+        "code": 0,
+        "message": "登录成功",
+        "data": {
+          "token": "eyJhbG...",
+          "expiresAt": "2026-07-05T...",
+          "username": "admin",
+          "displayName": "系统管理员"
+        }
+      }
+    失败（密码错误）：HTTP 401, code=401, message="用户名或密码错误"
+
+  GET /auth/me（需要 Token）
+    Header：Authorization: Bearer {token}
+    成功响应：
+      {
+        "code": 0,
+        "message": "success",
+        "data": {
+          "id": 1,
+          "username": "admin",
+          "displayName": "系统管理员"
+        }
+      }
+    未登录：HTTP 401, code=401, message="未登录或 Token 已过期"
+
+================================================================================
+【默认种子账号】
+================================================================================
+
+  用户名：admin
+  密码：  Admin@123
+  显示名：系统管理员
+
+  首次启动时 DbInitializer 检测无 admin 用户则自动插入。
+  密码经 BCrypt 哈希后存入 PasswordHash 字段，数据库中无明文。
+
+================================================================================
+【核心流程】
+================================================================================
+
+  登录流程：
+    POST /auth/login
+      → AuthController
+      → IAuthService.LoginAsync
+      → 查 admin 表 → BCrypt 验密码
+      → JwtTokenService.CreateToken（写入 adminId、username 等到 Claims）
+      → 返回 Token
+
+  鉴权流程：
+  请求带 Authorization: Bearer {token}
+      → UseAuthentication（JWT 中间件验签）
+      → UseAuthorization（[Authorize] 检查）
+      → Controller 通过 User.Claims 取当前用户 Id
+
+================================================================================
+【分层职责】
+================================================================================
+
+  Domain/Entities/Admin.cs
+    - 管理员实体，SugarTable 映射 admin 表
+
+  Application
+    - IAuthService 接口
+    - LoginRequest / LoginResponse / AdminProfileResponse DTO
+
+  Infrastructure
+    - AuthService：登录逻辑、查库
+    - PasswordHasher：BCrypt 哈希/验证
+    - JwtTokenService：签发 JWT
+    - DbInitializer：Code First 建表 + 种子数据
+
+  Admin.Api
+    - AuthController：login / me 接口
+    - JwtAuthenticationExtensions：JWT 注册 + Swagger Bearer
+    - DatabaseInitializerExtensions：启动时初始化数据库
+
+================================================================================
+【Program.cs 关键配置】
+================================================================================
+
+  builder.Services.AddJwtAuthentication(builder.Configuration);
+  builder.Services.AddSwaggerWithJwt();
+
+  var app = builder.Build();
+  app.UseExceptionHandling();
+  app.UseDatabaseInitializer();    // 建表 + 种子
+
+  app.UseAuthentication();         // 必须在 UseAuthorization 之前
+  app.UseAuthorization();
+
+================================================================================
+【NuGet 包变化】
+================================================================================
+
+  WatchShop.Domain：
+    + SqlSugarCore（实体 SugarTable 特性）
+
+  WatchShop.Infrastructure：
+    + BCrypt.Net-Next
+    + System.IdentityModel.Tokens.Jwt
+    + Microsoft.IdentityModel.Tokens
+    + 引用 WatchShop.Domain
+
+  WatchShop.Admin.Api：
+    + Microsoft.AspNetCore.Authentication.JwtBearer
+
+================================================================================
+【Swagger 测试步骤】
+================================================================================
+
+  1. 打开 http://localhost:5234/swagger
+  2. 调用 POST /auth/login，Body：
+       { "username": "admin", "password": "Admin@123" }
+  3. 复制返回 data.token
+  4. 点击 Swagger 右上角 Authorize
+  5. 输入：Bearer {粘贴token}（注意 Bearer 后有空格）
+  6. 调用 GET /auth/me，应返回当前管理员信息
+  7. 不填 Token 直接调 /auth/me，应返回 401 统一格式
+
+================================================================================
+【BusinessException 与 HTTP 状态码映射】
+================================================================================
+
+  步骤 06 增强了 ExceptionHandlingMiddleware：
+    ApiResultCode.Unauthorized (401) → HTTP 401
+    ApiResultCode.Forbidden    (403) → HTTP 403
+    ApiResultCode.NotFound     (404) → HTTP 404
+    其他 BusinessException         → HTTP 400
+
+  登录失败 throw BusinessException(401, "用户名或密码错误") → HTTP 401
+
+================================================================================
+【常见问题】
+================================================================================
+
+  Q: Swagger Authorize 后仍 401？
+  A: 确认格式为 Bearer {token}，Bearer 与 token 之间有空格；Token 未过期。
+
+  Q: admin 表已存在但没有种子用户？
+  A: DbInitializer 只在无 admin 用户名时插入；可手动 DELETE 后重启，或手动 INSERT。
+
+  Q: JWT SecretKey 存在哪？
+  A: appsettings.json → Jwt:SecretKey；生产环境应改用环境变量或 User Secrets。
+
+  Q: 为什么 Domain 引用了 SqlSugar？
+  A: 实体用 SugarTable/SugarColumn 特性做 Code First 映射；步骤 07 会继续扩展实体。
+
+  Q: GET /health/db 需要登录吗？
+  A: 不需要，未加 [Authorize]，仍匿名可访问。
+
+================================================================================
+【本步未涉及（留给后续步骤）】
+================================================================================
+
+  - RBAC 角色权限（菜单、按钮级）              → 后续按需
+  - Refresh Token / Token 刷新                 → 后续按需
+  - 更多实体（Brand、Category、Product）       → 步骤 07
+  - Repository 抽象数据访问                    → 步骤 08
+
+================================================================================
+【下一步】
+================================================================================
+
+  → 步骤 07：领域实体与 Code First
+    目标：建表 Brand、Category、Product 等
+    技术：Code First、SugarTable/SugarColumn、雪花 ID
+
+  完成步骤 07 并验收通过后，确认再生成 doc/07-领域实体与CodeFirst.txt
+
+================================================================================
