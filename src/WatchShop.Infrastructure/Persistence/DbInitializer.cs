@@ -25,7 +25,8 @@ public class DbInitializer
             typeof(CartItem),
             typeof(ShopOrder),
             typeof(OrderItem),
-            typeof(OperationLog));
+            typeof(OperationLog),
+            typeof(Notification));
 
         SeedAdminUser();
         SeedCustomerUser();

@@ -1,0 +1,21 @@
+================================================================================
+步骤 29：OpenTelemetry 链路追踪 + Admin Rate Limiting
+================================================================================
+完成日期：2026-07-05
+
+【OpenTelemetry】
+  Admin.Api / Store.Api 均注册：
+  - ASP.NET Core / HttpClient 自动埋点
+  - Console Exporter（开发环境输出 Trace/Metrics）
+  - Resource ServiceName 区分双 API
+
+【Admin Rate Limiting】
+  固定窗口 200 次/分钟（admin-fixed）
+  MapControllers().RequireRateLimiting("admin-fixed")
+
+【关键文件】
+  Admin.Api/Extensions/OpenTelemetryExtensions.cs
+  Admin.Api/Extensions/AdminRateLimitExtensions.cs
+  Store.Api/Extensions/OpenTelemetryExtensions.cs
+
+================================================================================

@@ -26,6 +26,7 @@
     <ProjectReference Include="..\..\src\WatchShop.Application\WatchShop.Application.csproj" />
     <ProjectReference Include="..\..\src\WatchShop.Infrastructure\WatchShop.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\WatchShop.Admin.Api\WatchShop.Admin.Api.csproj" />
+    <ProjectReference Include="..\..\src\WatchShop.Store.Api\WatchShop.Store.Api.csproj" />
   </ItemGroup>
 
 </Project>

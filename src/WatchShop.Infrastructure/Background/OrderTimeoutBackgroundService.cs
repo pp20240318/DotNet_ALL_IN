@@ -2,6 +2,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using WatchShop.Application.Abstractions;
+using WatchShop.Application.Contracts.Persistence;
+using WatchShop.Application.Events;
 using WatchShop.Application.Options;
 using SqlSugar;
 using WatchShop.Domain.Entities;
@@ -33,6 +36,8 @@ public class OrderTimeoutBackgroundService : BackgroundService
             {
                 using var scope = _serviceProvider.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<ISqlSugarClient>();
+                var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var eventPublisher = scope.ServiceProvider.GetRequiredService<IEventPublisher>();
                 var deadline = DateTime.UtcNow.AddMinutes(-_options.PaymentTimeoutMinutes);
 
                 var expiredOrders = await db.Queryable<ShopOrder>()
@@ -43,12 +48,30 @@ public class OrderTimeoutBackgroundService : BackgroundService
 
                 foreach (var order in expiredOrders)
                 {
-                    order.Status = OrderStatus.Cancelled;
-                    order.CancelledAt = DateTime.UtcNow;
-                    order.UpdatedAt = DateTime.UtcNow;
-                    await db.Updateable(order)
-                        .UpdateColumns(x => new { x.Status, x.CancelledAt, x.UpdatedAt, x.Version })
-                        .ExecuteCommandAsync(stoppingToken);
+                    await unitOfWork.ExecuteInTransactionAsync(async () =>
+                    {
+                        var items = await db.Queryable<OrderItem>()
+                            .Where(x => x.OrderId == order.Id && !x.IsDeleted)
+                            .ToListAsync();
+
+                        foreach (var item in items)
+                        {
+                            var sku = await unitOfWork.Repository<ProductSku>().GetByIdAsync(item.SkuId, stoppingToken);
+                            if (sku is not null)
+                            {
+                                sku.Stock += item.Quantity;
+                                await unitOfWork.Repository<ProductSku>().UpdateAsync(sku, stoppingToken);
+                            }
+                        }
+
+                        order.Status = OrderStatus.Cancelled;
+                        order.CancelledAt = DateTime.UtcNow;
+                        order.UpdatedAt = DateTime.UtcNow;
+                        await unitOfWork.Repository<ShopOrder>().UpdateAsync(order, stoppingToken);
+                        await eventPublisher.PublishAsync(
+                            new OrderCancelledEvent(order.Id, order.OrderNo, "支付超时自动取消"),
+                            stoppingToken);
+                    }, stoppingToken);
 
                     _logger.LogInformation("Order {OrderNo} auto cancelled due to payment timeout.", order.OrderNo);
                 }

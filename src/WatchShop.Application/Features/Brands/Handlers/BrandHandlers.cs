@@ -2,6 +2,7 @@ using MediatR;
 using WatchShop.Application.Common;
 using WatchShop.Application.Contracts.Persistence;
 using WatchShop.Application.Exceptions;
+using WatchShop.Application.Features.Catalog;
 using WatchShop.Application.Features.Brands.Commands;
 using WatchShop.Application.Features.Brands.Dtos;
 using WatchShop.Application.Features.Brands.Queries;
@@ -66,8 +67,13 @@ public class GetBrandByIdQueryHandler : IRequestHandler<GetBrandByIdQuery, Brand
 public class CreateBrandCommandHandler : IRequestHandler<CreateBrandCommand, long>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICatalogCacheInvalidator _catalogCacheInvalidator;
 
-    public CreateBrandCommandHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+    public CreateBrandCommandHandler(IUnitOfWork unitOfWork, ICatalogCacheInvalidator catalogCacheInvalidator)
+    {
+        _unitOfWork = unitOfWork;
+        _catalogCacheInvalidator = catalogCacheInvalidator;
+    }
 
     public async Task<long> Handle(CreateBrandCommand request, CancellationToken cancellationToken)
     {
@@ -79,15 +85,22 @@ public class CreateBrandCommandHandler : IRequestHandler<CreateBrandCommand, lon
             SortOrder = request.Request.SortOrder,
             IsEnabled = request.Request.IsEnabled
         };
-        return await _unitOfWork.Repository<Brand>().InsertAsync(entity, cancellationToken);
+        var id = await _unitOfWork.Repository<Brand>().InsertAsync(entity, cancellationToken);
+        await _catalogCacheInvalidator.InvalidateAllAsync(cancellationToken);
+        return id;
     }
 }
 
 public class UpdateBrandCommandHandler : IRequestHandler<UpdateBrandCommand>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICatalogCacheInvalidator _catalogCacheInvalidator;
 
-    public UpdateBrandCommandHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+    public UpdateBrandCommandHandler(IUnitOfWork unitOfWork, ICatalogCacheInvalidator catalogCacheInvalidator)
+    {
+        _unitOfWork = unitOfWork;
+        _catalogCacheInvalidator = catalogCacheInvalidator;
+    }
 
     public async Task Handle(UpdateBrandCommand request, CancellationToken cancellationToken)
     {
@@ -101,15 +114,24 @@ public class UpdateBrandCommandHandler : IRequestHandler<UpdateBrandCommand>
         entity.SortOrder = request.Request.SortOrder;
         entity.IsEnabled = request.Request.IsEnabled;
         await repo.UpdateAsync(entity, cancellationToken);
+        await _catalogCacheInvalidator.InvalidateAllAsync(cancellationToken);
     }
 }
 
 public class DeleteBrandCommandHandler : IRequestHandler<DeleteBrandCommand>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICatalogCacheInvalidator _catalogCacheInvalidator;
 
-    public DeleteBrandCommandHandler(IUnitOfWork unitOfWork) => _unitOfWork = unitOfWork;
+    public DeleteBrandCommandHandler(IUnitOfWork unitOfWork, ICatalogCacheInvalidator catalogCacheInvalidator)
+    {
+        _unitOfWork = unitOfWork;
+        _catalogCacheInvalidator = catalogCacheInvalidator;
+    }
 
-    public Task Handle(DeleteBrandCommand request, CancellationToken cancellationToken)
-        => _unitOfWork.Repository<Brand>().SoftDeleteAsync(request.Id, cancellationToken);
+    public async Task Handle(DeleteBrandCommand request, CancellationToken cancellationToken)
+    {
+        await _unitOfWork.Repository<Brand>().SoftDeleteAsync(request.Id, cancellationToken);
+        await _catalogCacheInvalidator.InvalidateAllAsync(cancellationToken);
+    }
 }

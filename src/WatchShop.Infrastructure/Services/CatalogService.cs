@@ -1,3 +1,4 @@
+using FluentValidation;
 using WatchShop.Application.Abstractions;
 using WatchShop.Application.Contracts.Persistence;
 using WatchShop.Application.Events;
@@ -19,12 +20,18 @@ public class CatalogService : ICatalogService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IEventPublisher _eventPublisher;
     private readonly CacheService _cache;
+    private readonly IValidator<StoreOrderCreateRequest> _orderValidator;
 
-    public CatalogService(IUnitOfWork unitOfWork, IEventPublisher eventPublisher, CacheService cache)
+    public CatalogService(
+        IUnitOfWork unitOfWork,
+        IEventPublisher eventPublisher,
+        CacheService cache,
+        IValidator<StoreOrderCreateRequest> orderValidator)
     {
         _unitOfWork = unitOfWork;
         _eventPublisher = eventPublisher;
         _cache = cache;
+        _orderValidator = orderValidator;
     }
 
     public async Task<List<CatalogBrandResponse>> GetBrandsAsync(CancellationToken cancellationToken = default)
@@ -127,6 +134,14 @@ public class CatalogService : ICatalogService
         long? customerId = null,
         CancellationToken cancellationToken = default)
     {
+        var validation = await _orderValidator.ValidateAsync(request, cancellationToken);
+        if (!validation.IsValid)
+        {
+            throw new BusinessException(
+                Application.Common.ApiResultCode.ValidationError,
+                string.Join("; ", validation.Errors.Select(e => e.ErrorMessage)));
+        }
+
         if (request.Quantity <= 0)
         {
             throw new BusinessException("购买数量必须大于 0");

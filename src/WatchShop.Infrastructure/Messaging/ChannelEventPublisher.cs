@@ -1,7 +1,9 @@
 using System.Threading.Channels;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using WatchShop.Application.Abstractions;
+using WatchShop.Application.Events;
 
 namespace WatchShop.Infrastructure.Messaging;
 
@@ -21,16 +23,19 @@ public class ChannelEventPublisher : IEventPublisher
     }
 }
 
-public class EventConsumerBackgroundService : BackgroundService
+public class EventDispatcherBackgroundService : BackgroundService
 {
     private readonly Channel<object> _channel;
-    private readonly ILogger<EventConsumerBackgroundService> _logger;
+    private readonly IServiceProvider _serviceProvider;
+    private readonly ILogger<EventDispatcherBackgroundService> _logger;
 
-    public EventConsumerBackgroundService(
+    public EventDispatcherBackgroundService(
         Channel<object> channel,
-        ILogger<EventConsumerBackgroundService> logger)
+        IServiceProvider serviceProvider,
+        ILogger<EventDispatcherBackgroundService> logger)
     {
         _channel = channel;
+        _serviceProvider = serviceProvider;
         _logger = logger;
     }
 
@@ -38,7 +43,30 @@ public class EventConsumerBackgroundService : BackgroundService
     {
         await foreach (var @event in _channel.Reader.ReadAllAsync(stoppingToken))
         {
-            _logger.LogInformation("Event consumed: {EventType} {@Event}", @event.GetType().Name, @event);
+            using var scope = _serviceProvider.CreateScope();
+            try
+            {
+                switch (@event)
+                {
+                    case OrderCreatedEvent created:
+                        await scope.ServiceProvider
+                            .GetRequiredService<IIntegrationEventHandler<OrderCreatedEvent>>()
+                            .HandleAsync(created, stoppingToken);
+                        break;
+                    case OrderCancelledEvent cancelled:
+                        await scope.ServiceProvider
+                            .GetRequiredService<IIntegrationEventHandler<OrderCancelledEvent>>()
+                            .HandleAsync(cancelled, stoppingToken);
+                        break;
+                    default:
+                        _logger.LogWarning("No handler registered for event {EventType}", @event.GetType().Name);
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to dispatch event {EventType}", @event.GetType().Name);
+            }
         }
     }
 }

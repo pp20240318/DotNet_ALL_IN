@@ -13,6 +13,7 @@ builder.Services.AddControllers();
 builder.Services.AddStoreSwagger();
 builder.Services.AddStoreRateLimiting();
 builder.Services.AddStoreHealthChecks(builder.Configuration);
+builder.Services.AddWatchShopOpenTelemetry("WatchShop.Store.Api");
 
 builder.Services.AddApplication(builder.Configuration);
 builder.Services.AddInfrastructure();

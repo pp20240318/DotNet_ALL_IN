@@ -1,6 +1,8 @@
 using FluentValidation;
 using WatchShop.Application.Abstractions;
+using WatchShop.Application.Dtos.Auth;
 using WatchShop.Application.Features.Brands.Dtos;
+using WatchShop.Application.Features.Catalog.Dtos;
 using WatchShop.Application.Features.Store.Dtos;
 
 namespace WatchShop.Application.Features.Validators;
@@ -71,5 +73,53 @@ public class CreateProductCommandValidator : AbstractValidator<Products.CreatePr
     public CreateProductCommandValidator()
     {
         RuleFor(x => x.Request).SetValidator(new ProductCreateRequestValidator());
+    }
+}
+
+public class AdminLoginCommandValidator : AbstractValidator<Auth.AdminLoginCommand>
+{
+    public AdminLoginCommandValidator()
+    {
+        RuleFor(x => x.Request.Username).NotEmpty();
+        RuleFor(x => x.Request.Password).NotEmpty();
+    }
+}
+
+public class UpdateBrandCommandValidator : AbstractValidator<Brands.Commands.UpdateBrandCommand>
+{
+    public UpdateBrandCommandValidator()
+    {
+        RuleFor(x => x.Request).SetValidator(new BrandCreateRequestValidator());
+    }
+}
+
+public class CreateSkuCommandValidator : AbstractValidator<ProductSkus.CreateSkuCommand>
+{
+    public CreateSkuCommandValidator()
+    {
+        RuleFor(x => x.Request.ProductId).GreaterThan(0);
+        RuleFor(x => x.Request.SkuCode).NotEmpty().MaximumLength(50);
+        RuleFor(x => x.Request.Stock).GreaterThanOrEqualTo(0);
+    }
+}
+
+public class StoreOrderCreateRequestValidator : AbstractValidator<StoreOrderCreateRequest>
+{
+    public StoreOrderCreateRequestValidator()
+    {
+        RuleFor(x => x.SkuId).GreaterThan(0);
+        RuleFor(x => x.Quantity).GreaterThan(0);
+        RuleFor(x => x.ReceiverName).NotEmpty();
+        RuleFor(x => x.ReceiverPhone).NotEmpty();
+        RuleFor(x => x.ReceiverAddress).NotEmpty();
+    }
+}
+
+public class CartAddRequestValidator : AbstractValidator<CartAddRequest>
+{
+    public CartAddRequestValidator()
+    {
+        RuleFor(x => x.SkuId).GreaterThan(0);
+        RuleFor(x => x.Quantity).GreaterThan(0);
     }
 }

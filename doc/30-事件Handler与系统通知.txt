@@ -1,0 +1,21 @@
+================================================================================
+步骤 30：事件 Handler 管道 + 系统通知
+================================================================================
+完成日期：2026-07-05
+
+【架构】
+  Channel → EventDispatcherBackgroundService → IIntegrationEventHandler<T>
+
+【Handler】
+  OrderCreatedEventHandler   → 写入 Notification + 日志
+  OrderCancelledEventHandler → 写入 Notification + 日志
+
+【Notification 实体 + Admin API】
+  GET  /notifications
+  GET  /notifications/unread-count
+  POST /notifications/{id}/read
+  POST /notifications/read-all
+
+【下单/取消/超时关单均触发通知】
+
+================================================================================

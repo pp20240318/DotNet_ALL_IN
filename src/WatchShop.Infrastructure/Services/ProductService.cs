@@ -4,6 +4,7 @@ using WatchShop.Application.Common;
 using WatchShop.Application.Exceptions;
 using WatchShop.Domain.Entities;
 using WatchShop.Domain.Enums;
+using WatchShop.Application.Features.Catalog;
 using WatchShop.Infrastructure.Caching;
 
 namespace WatchShop.Infrastructure.Services;
@@ -12,11 +13,13 @@ public class ProductService : IProductService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly CacheService _cache;
+    private readonly ICatalogCacheInvalidator _catalogCacheInvalidator;
 
-    public ProductService(IUnitOfWork unitOfWork, CacheService cache)
+    public ProductService(IUnitOfWork unitOfWork, CacheService cache, ICatalogCacheInvalidator catalogCacheInvalidator)
     {
         _unitOfWork = unitOfWork;
         _cache = cache;
+        _catalogCacheInvalidator = catalogCacheInvalidator;
     }
 
     public async Task<long> CreateAsync(ProductCreateRequest request, CancellationToken cancellationToken = default)
@@ -33,7 +36,9 @@ public class ProductService : IProductService
             Status = request.Status,
             CoverImage = request.CoverImage
         };
-        return await _unitOfWork.Repository<Product>().InsertAsync(entity, cancellationToken);
+        var id = await _unitOfWork.Repository<Product>().InsertAsync(entity, cancellationToken);
+        await _catalogCacheInvalidator.InvalidateAllAsync(cancellationToken);
+        return id;
     }
 
     public async Task UpdateAsync(long id, ProductUpdateRequest request, CancellationToken cancellationToken = default)
@@ -54,12 +59,14 @@ public class ProductService : IProductService
         entity.Version = request.Version;
         await repo.UpdateAsync(entity, cancellationToken);
         await _cache.RemoveAsync(GetCacheKey(id), cancellationToken);
+        await _catalogCacheInvalidator.InvalidateProductAsync(id, cancellationToken);
     }
 
     public async Task DeleteAsync(long id, CancellationToken cancellationToken = default)
     {
         await _unitOfWork.Repository<Product>().SoftDeleteAsync(id, cancellationToken);
         await _cache.RemoveAsync(GetCacheKey(id), cancellationToken);
+        await _catalogCacheInvalidator.InvalidateProductAsync(id, cancellationToken);
     }
 
     public async Task ChangeStatusAsync(long id, ProductStatus status, CancellationToken cancellationToken = default)
@@ -71,6 +78,7 @@ public class ProductService : IProductService
         entity.Status = status;
         await repo.UpdateAsync(entity, cancellationToken);
         await _cache.RemoveAsync(GetCacheKey(id), cancellationToken);
+        await _catalogCacheInvalidator.InvalidateProductAsync(id, cancellationToken);
     }
 
     public async Task<ProductResponse?> GetByIdAsync(long id, CancellationToken cancellationToken = default)

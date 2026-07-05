@@ -2,11 +2,11 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace WatchShop.Tests;
 
-public class HealthEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+public class HealthEndpointTests : IClassFixture<WebApplicationFactory<WatchShop.Admin.Api.AdminApiEntryPoint>>
 {
     private readonly HttpClient _client;
 
-    public HealthEndpointTests(WebApplicationFactory<Program> factory)
+    public HealthEndpointTests(WebApplicationFactory<WatchShop.Admin.Api.AdminApiEntryPoint> factory)
     {
         _client = factory.CreateClient();
     }

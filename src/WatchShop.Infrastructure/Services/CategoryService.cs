@@ -2,6 +2,7 @@ using WatchShop.Application.Abstractions;
 using WatchShop.Application.Contracts.Persistence;
 using WatchShop.Application.Common;
 using WatchShop.Application.Exceptions;
+using WatchShop.Application.Features.Catalog;
 using WatchShop.Domain.Entities;
 
 namespace WatchShop.Infrastructure.Services;
@@ -9,10 +10,12 @@ namespace WatchShop.Infrastructure.Services;
 public class CategoryService : ICategoryService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICatalogCacheInvalidator _catalogCacheInvalidator;
 
-    public CategoryService(IUnitOfWork unitOfWork)
+    public CategoryService(IUnitOfWork unitOfWork, ICatalogCacheInvalidator catalogCacheInvalidator)
     {
         _unitOfWork = unitOfWork;
+        _catalogCacheInvalidator = catalogCacheInvalidator;
     }
 
     public async Task<long> CreateAsync(CategoryCreateRequest request, CancellationToken cancellationToken = default)
@@ -24,7 +27,9 @@ public class CategoryService : ICategoryService
             SortOrder = request.SortOrder,
             IsEnabled = request.IsEnabled
         };
-        return await _unitOfWork.Repository<Category>().InsertAsync(entity, cancellationToken);
+        var id = await _unitOfWork.Repository<Category>().InsertAsync(entity, cancellationToken);
+        await _catalogCacheInvalidator.InvalidateAllAsync(cancellationToken);
+        return id;
     }
 
     public async Task UpdateAsync(long id, CategoryUpdateRequest request, CancellationToken cancellationToken = default)
@@ -38,10 +43,14 @@ public class CategoryService : ICategoryService
         entity.SortOrder = request.SortOrder;
         entity.IsEnabled = request.IsEnabled;
         await repo.UpdateAsync(entity, cancellationToken);
+        await _catalogCacheInvalidator.InvalidateAllAsync(cancellationToken);
     }
 
-    public Task DeleteAsync(long id, CancellationToken cancellationToken = default)
-        => _unitOfWork.Repository<Category>().SoftDeleteAsync(id, cancellationToken);
+    public async Task DeleteAsync(long id, CancellationToken cancellationToken = default)
+    {
+        await _unitOfWork.Repository<Category>().SoftDeleteAsync(id, cancellationToken);
+        await _catalogCacheInvalidator.InvalidateAllAsync(cancellationToken);
+    }
 
     public async Task<CategoryResponse?> GetByIdAsync(long id, CancellationToken cancellationToken = default)
     {

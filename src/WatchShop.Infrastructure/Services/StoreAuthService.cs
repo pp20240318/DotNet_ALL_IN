@@ -1,3 +1,4 @@
+using FluentValidation;
 using Microsoft.Extensions.Options;
 using WatchShop.Application.Contracts.Persistence;
 using WatchShop.Application.Exceptions;
@@ -14,19 +15,26 @@ public class StoreAuthService : IStoreAuthService
     private readonly IUnitOfWork _unitOfWork;
     private readonly JwtTokenService _jwtTokenService;
     private readonly StoreJwtOptions _storeJwtOptions;
+    private readonly IValidator<CustomerRegisterRequest> _registerValidator;
+    private readonly IValidator<CustomerLoginRequest> _loginValidator;
 
     public StoreAuthService(
         IUnitOfWork unitOfWork,
         JwtTokenService jwtTokenService,
-        IOptions<StoreJwtOptions> storeJwtOptions)
+        IOptions<StoreJwtOptions> storeJwtOptions,
+        IValidator<CustomerRegisterRequest> registerValidator,
+        IValidator<CustomerLoginRequest> loginValidator)
     {
         _unitOfWork = unitOfWork;
         _jwtTokenService = jwtTokenService;
         _storeJwtOptions = storeJwtOptions.Value;
+        _registerValidator = registerValidator;
+        _loginValidator = loginValidator;
     }
 
     public async Task<CustomerLoginResponse> RegisterAsync(CustomerRegisterRequest request, CancellationToken cancellationToken = default)
     {
+        await ValidateAsync(_registerValidator, request, cancellationToken);
         var existing = await _unitOfWork.Repository<Customer>()
             .GetListAsync(x => x.Username == request.Username, cancellationToken);
 
@@ -50,6 +58,7 @@ public class StoreAuthService : IStoreAuthService
 
     public async Task<CustomerLoginResponse> LoginAsync(CustomerLoginRequest request, CancellationToken cancellationToken = default)
     {
+        await ValidateAsync(_loginValidator, request, cancellationToken);
         var customers = await _unitOfWork.Repository<Customer>()
             .GetListAsync(x => x.Username == request.Username, cancellationToken);
         var customer = customers.FirstOrDefault()
@@ -89,4 +98,15 @@ public class StoreAuthService : IStoreAuthService
         Nickname = customer.Nickname,
         Phone = customer.Phone
     };
+
+    private static async Task ValidateAsync<T>(IValidator<T> validator, T instance, CancellationToken cancellationToken)
+    {
+        var result = await validator.ValidateAsync(instance, cancellationToken);
+        if (!result.IsValid)
+        {
+            throw new BusinessException(
+                Application.Common.ApiResultCode.ValidationError,
+                string.Join("; ", result.Errors.Select(e => e.ErrorMessage)));
+        }
+    }
 }

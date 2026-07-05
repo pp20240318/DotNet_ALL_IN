@@ -6,6 +6,7 @@ using SqlSugar;
 using WatchShop.Application.Abstractions;
 using WatchShop.Application.Contracts.Persistence;
 using WatchShop.Application.Features.Catalog;
+using WatchShop.Application.Features.Notifications;
 using WatchShop.Application.Features.Dashboard;
 using WatchShop.Application.Features.OperationLogs;
 using WatchShop.Application.Features.Store;
@@ -13,6 +14,7 @@ using WatchShop.Application.Options;
 using WatchShop.Infrastructure.Background;
 using WatchShop.Infrastructure.Caching;
 using WatchShop.Infrastructure.Messaging;
+using WatchShop.Infrastructure.Messaging.Handlers;
 using WatchShop.Infrastructure.Persistence;
 using WatchShop.Infrastructure.Security;
 using WatchShop.Infrastructure.Services;
@@ -51,7 +53,9 @@ public static class DependencyInjection
 
         services.AddSingleton(_ => Channel.CreateUnbounded<object>());
         services.AddSingleton<IEventPublisher, ChannelEventPublisher>();
-        services.AddHostedService<EventConsumerBackgroundService>();
+        services.AddScoped<IIntegrationEventHandler<Application.Events.OrderCreatedEvent>, OrderCreatedEventHandler>();
+        services.AddScoped<IIntegrationEventHandler<Application.Events.OrderCancelledEvent>, OrderCancelledEventHandler>();
+        services.AddHostedService<EventDispatcherBackgroundService>();
         services.AddHostedService<OrderTimeoutBackgroundService>();
 
         services.AddSingleton<JwtTokenService>();
@@ -72,6 +76,8 @@ public static class DependencyInjection
         services.AddScoped<IStoreOrderService, StoreOrderService>();
         services.AddScoped<IDashboardService, DashboardService>();
         services.AddScoped<IOperationLogQueryService, OperationLogQueryService>();
+        services.AddScoped<ICatalogCacheInvalidator, CatalogCacheInvalidator>();
+        services.AddScoped<INotificationService, NotificationService>();
 
         return services;
     }
