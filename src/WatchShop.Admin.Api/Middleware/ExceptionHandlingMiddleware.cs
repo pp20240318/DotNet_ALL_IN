@@ -31,6 +31,7 @@ public class ExceptionHandlingMiddleware
                 ApiResultCode.Unauthorized => HttpStatusCode.Unauthorized,
                 ApiResultCode.Forbidden => HttpStatusCode.Forbidden,
                 ApiResultCode.NotFound => HttpStatusCode.NotFound,
+                ApiResultCode.ValidationError => HttpStatusCode.UnprocessableEntity,
                 _ => HttpStatusCode.BadRequest
             };
             await WriteErrorAsync(context, httpStatus, ex.Code, ex.Message);

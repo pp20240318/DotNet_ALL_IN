@@ -13,6 +13,9 @@ public class ShopOrder : BaseEntity
 
     public decimal TotalAmount { get; set; }
 
+    [SugarColumn(IsNullable = true)]
+    public long? CustomerId { get; set; }
+
     [SugarColumn(Length = 50, IsNullable = true)]
     public string? ReceiverName { get; set; }
 

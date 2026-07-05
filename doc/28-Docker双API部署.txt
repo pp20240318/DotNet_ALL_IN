@@ -1,0 +1,20 @@
+================================================================================
+步骤 28：Docker 双 API 部署
+================================================================================
+完成日期：2026-07-05
+
+【容器编排】
+  admin-api  → http://localhost:8080  (Dockerfile)
+  store-api  → http://localhost:8081  (Dockerfile.store)
+  mysql + redis 共用
+
+【启动】
+  docker compose up --build
+
+【Production 配置】
+  appsettings.Production.json（Database=mysql, Redis=redis）
+
+【种子增强】
+  商品默认 OnSale + 每商品一条 SKU（含库存）
+
+================================================================================

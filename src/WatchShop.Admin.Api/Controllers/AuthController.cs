@@ -1,35 +1,24 @@
 using System.Security.Claims;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using WatchShop.Application.Abstractions;
 using WatchShop.Application.Dtos.Auth;
+using WatchShop.Application.Features.Auth;
 
 namespace WatchShop.Admin.Api.Controllers;
 
 [Route("auth")]
 public class AuthController : ApiControllerBase
 {
-    private readonly IAuthService _authService;
+    private readonly IMediator _mediator;
 
-    public AuthController(IAuthService authService)
-    {
-        _authService = authService;
-    }
+    public AuthController(IMediator mediator) => _mediator = mediator;
 
-    /// <summary>
-    /// 管理员登录（无需 Token）
-    /// </summary>
     [HttpPost("login")]
     [AllowAnonymous]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
-    {
-        var result = await _authService.LoginAsync(request);
-        return Success(result, "登录成功");
-    }
+        => Success(await _mediator.Send(new AdminLoginCommand(request)), "登录成功");
 
-    /// <summary>
-    /// 获取当前登录管理员信息（需要 Token）
-    /// </summary>
     [HttpGet("me")]
     [Authorize]
     public async Task<IActionResult> GetProfile()
@@ -40,7 +29,6 @@ public class AuthController : ApiControllerBase
             return Fail(401, "无效的登录状态");
         }
 
-        var profile = await _authService.GetProfileAsync(adminId);
-        return Success(profile);
+        return Success(await _mediator.Send(new GetAdminProfileQuery(adminId)));
     }
 }

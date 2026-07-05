@@ -19,20 +19,55 @@ public class JwtTokenService
 
     public (string Token, DateTime ExpiresAt) CreateToken(Admin admin)
     {
-        var expiresAt = DateTime.UtcNow.AddMinutes(_jwtOptions.ExpirationMinutes);
+        return CreateTokenInternal(
+            _jwtOptions.Issuer,
+            _jwtOptions.Audience,
+            _jwtOptions.SecretKey,
+            _jwtOptions.ExpirationMinutes,
+            admin.Id,
+            admin.Username,
+            admin.DisplayName,
+            "admin");
+    }
+
+    public (string Token, DateTime ExpiresAt) CreateCustomerToken(Customer customer, StoreJwtOptions storeJwtOptions)
+    {
+        return CreateTokenInternal(
+            storeJwtOptions.Issuer,
+            storeJwtOptions.Audience,
+            storeJwtOptions.SecretKey,
+            storeJwtOptions.ExpirationMinutes,
+            customer.Id,
+            customer.Username,
+            customer.Nickname ?? customer.Username,
+            "customer");
+    }
+
+    private static (string Token, DateTime ExpiresAt) CreateTokenInternal(
+        string issuer,
+        string audience,
+        string secretKey,
+        int expirationMinutes,
+        long userId,
+        string username,
+        string displayName,
+        string role)
+    {
+        var expiresAt = DateTime.UtcNow.AddMinutes(expirationMinutes);
         var claims = new[]
         {
-            new Claim(ClaimTypes.NameIdentifier, admin.Id.ToString()),
-            new Claim(ClaimTypes.Name, admin.Username),
-            new Claim("display_name", admin.DisplayName)
+            new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+            new Claim(ClaimTypes.Name, username),
+            new Claim(ClaimTypes.Role, role),
+            new Claim("display_name", displayName)
         };
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.SecretKey));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var token = new JwtSecurityToken(
-            issuer: _jwtOptions.Issuer,
-            audience: _jwtOptions.Audience,
+            issuer: issuer,
+            audience: audience,
             claims: claims,
             expires: expiresAt,
             signingCredentials: credentials);

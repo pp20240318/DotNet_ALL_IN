@@ -25,9 +25,10 @@ public class ExceptionHandlingMiddleware
         {
             var httpStatus = ex.Code switch
             {
-                ApiResultCode.Unauthorized => HttpStatusCode.Unauthorized,
-                ApiResultCode.Forbidden => HttpStatusCode.Forbidden,
-                ApiResultCode.NotFound => HttpStatusCode.NotFound,
+                Application.Common.ApiResultCode.Unauthorized => HttpStatusCode.Unauthorized,
+                Application.Common.ApiResultCode.Forbidden => HttpStatusCode.Forbidden,
+                Application.Common.ApiResultCode.NotFound => HttpStatusCode.NotFound,
+                Application.Common.ApiResultCode.ValidationError => HttpStatusCode.UnprocessableEntity,
                 _ => HttpStatusCode.BadRequest
             };
             await WriteErrorAsync(context, httpStatus, ex.Code, ex.Message);

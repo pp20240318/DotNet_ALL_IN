@@ -1,0 +1,21 @@
+================================================================================
+步骤 24：MediatR 全模块 + FluentValidation
+================================================================================
+完成日期：2026-07-05
+
+【新增能力】
+  - Category / Product / ProductSku / Order / Auth 全部 MediatR 化
+  - FluentValidation 入参校验（Brand / Category / Product / Customer）
+  - ValidationBehavior + LoggingBehavior 管道
+  - ApiResultCode.ValidationError = 422
+
+【关键文件】
+  Application/Behaviors/ValidationBehavior.cs
+  Application/Behaviors/LoggingBehavior.cs
+  Application/Features/Validators/RequestValidators.cs
+  Application/Features/{Categories,Products,ProductSkus,Orders,Auth}/*Handlers.cs
+
+【验收】
+  Admin 全部 Controller 注入 IMediator；非法入参返回 422
+
+================================================================================

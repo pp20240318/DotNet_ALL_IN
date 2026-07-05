@@ -1,0 +1,17 @@
+================================================================================
+步骤 27：目录 Redis 缓存与 Rate Limiting
+================================================================================
+完成日期：2026-07-05
+
+【CatalogService 缓存】
+  catalog:brands / catalog:categories / catalog:products / catalog:product:{id}
+  Redis.Enabled=false 时使用内存分布式缓存（开发环境）
+
+【Store Rate Limiting】
+  固定窗口 120 次/分钟（store-fixed 策略）
+  应用于 catalog、orders、auth、cart 路由
+
+【Health】
+  Store GET /health（MySQL 健康检查）
+
+================================================================================

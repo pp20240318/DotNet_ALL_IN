@@ -18,7 +18,7 @@ services:
     ports:
       - "6379:6379"
 
-  api:
+  admin-api:
     build:
       context: .
       dockerfile: Dockerfile
@@ -30,6 +30,19 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
     ports:
       - "8080:8080"
+
+  store-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.store
+    container_name: watchshop-store-api
+    depends_on:
+      - mysql
+      - redis
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+    ports:
+      - "8081:8080"
 
 volumes:
   mysql_data:

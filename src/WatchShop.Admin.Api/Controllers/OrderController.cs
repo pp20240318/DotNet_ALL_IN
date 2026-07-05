@@ -1,7 +1,9 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WatchShop.Admin.Api.Filters;
 using WatchShop.Application.Abstractions;
+using WatchShop.Application.Features.Orders;
 
 namespace WatchShop.Admin.Api.Controllers;
 
@@ -10,39 +12,36 @@ namespace WatchShop.Admin.Api.Controllers;
 [OperationLogFilter]
 public class OrderController : ApiControllerBase
 {
-    private readonly IOrderService _orderService;
+    private readonly IMediator _mediator;
 
-    public OrderController(IOrderService orderService)
-    {
-        _orderService = orderService;
-    }
+    public OrderController(IMediator mediator) => _mediator = mediator;
 
     [HttpGet]
     public async Task<IActionResult> GetPaged([FromQuery] OrderQueryRequest query)
-        => Success(await _orderService.GetPagedAsync(query));
+        => Success(await _mediator.Send(new GetOrdersPagedQuery(query)));
 
     [HttpGet("{id:long}")]
     public async Task<IActionResult> GetById(long id)
     {
-        var item = await _orderService.GetByIdAsync(id);
+        var item = await _mediator.Send(new GetOrderByIdQuery(id));
         return item is null ? Fail(404, "订单不存在") : Success(item);
     }
 
     [HttpPost("demo")]
     public async Task<IActionResult> CreateDemo()
-        => Success(new { id = await _orderService.CreateDemoOrderAsync() }, "演示订单创建成功");
+        => Success(new { id = await _mediator.Send(new CreateDemoOrderCommand()) }, "演示订单创建成功");
 
     [HttpPost("{id:long}/ship")]
     public async Task<IActionResult> Ship(long id)
     {
-        await _orderService.ShipAsync(id);
+        await _mediator.Send(new ShipOrderCommand(id));
         return Success(true, "发货成功");
     }
 
     [HttpPost("{id:long}/cancel")]
     public async Task<IActionResult> Cancel(long id)
     {
-        await _orderService.CancelAsync(id);
+        await _mediator.Send(new CancelOrderCommand(id));
         return Success(true, "取消成功");
     }
 }

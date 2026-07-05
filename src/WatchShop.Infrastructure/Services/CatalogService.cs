@@ -6,47 +6,69 @@ using WatchShop.Application.Features.Catalog;
 using WatchShop.Application.Features.Catalog.Dtos;
 using WatchShop.Domain.Entities;
 using WatchShop.Domain.Enums;
+using WatchShop.Infrastructure.Caching;
 
 namespace WatchShop.Infrastructure.Services;
 
 public class CatalogService : ICatalogService
 {
+    private const string BrandsCacheKey = "catalog:brands";
+    private const string CategoriesCacheKey = "catalog:categories";
+    private const string ProductsCacheKey = "catalog:products";
+
     private readonly IUnitOfWork _unitOfWork;
     private readonly IEventPublisher _eventPublisher;
+    private readonly CacheService _cache;
 
-    public CatalogService(IUnitOfWork unitOfWork, IEventPublisher eventPublisher)
+    public CatalogService(IUnitOfWork unitOfWork, IEventPublisher eventPublisher, CacheService cache)
     {
         _unitOfWork = unitOfWork;
         _eventPublisher = eventPublisher;
+        _cache = cache;
     }
 
     public async Task<List<CatalogBrandResponse>> GetBrandsAsync(CancellationToken cancellationToken = default)
     {
+        var cached = await _cache.GetAsync<List<CatalogBrandResponse>>(BrandsCacheKey, cancellationToken);
+        if (cached is not null) return cached;
+
         var items = await _unitOfWork.Repository<Brand>()
             .GetListAsync(x => x.IsEnabled, cancellationToken);
 
-        return items.Select(x => new CatalogBrandResponse
+        var result = items.Select(x => new CatalogBrandResponse
         {
             Id = x.Id,
             Name = x.Name,
             LogoUrl = x.LogoUrl
         }).ToList();
+
+        await _cache.SetAsync(BrandsCacheKey, result, TimeSpan.FromMinutes(30), cancellationToken);
+        return result;
     }
 
     public async Task<List<CatalogCategoryResponse>> GetCategoriesAsync(CancellationToken cancellationToken = default)
     {
+        var cached = await _cache.GetAsync<List<CatalogCategoryResponse>>(CategoriesCacheKey, cancellationToken);
+        if (cached is not null) return cached;
+
         var items = await _unitOfWork.Repository<Category>()
             .GetListAsync(x => x.IsEnabled, cancellationToken);
 
-        return items.Select(x => new CatalogCategoryResponse
+        var result = items.Select(x => new CatalogCategoryResponse
         {
             Id = x.Id,
             Name = x.Name
         }).ToList();
+
+        await _cache.SetAsync(CategoriesCacheKey, result, TimeSpan.FromMinutes(30), cancellationToken);
+        return result;
     }
 
     public async Task<List<CatalogProductResponse>> GetOnSaleProductsAsync(CancellationToken cancellationToken = default)
     {
+        var cached = await _cache.GetAsync<List<CatalogProductResponse>>(ProductsCacheKey, cancellationToken);
+        if (cached is not null) return cached;
+
         var products = await _unitOfWork.Repository<Product>()
             .GetListAsync(x => x.Status == ProductStatus.OnSale, cancellationToken);
 
@@ -56,11 +78,16 @@ public class CatalogService : ICatalogService
             result.Add(await MapProduct(product, cancellationToken));
         }
 
+        await _cache.SetAsync(ProductsCacheKey, result, TimeSpan.FromMinutes(10), cancellationToken);
         return result;
     }
 
     public async Task<CatalogProductDetailResponse?> GetProductDetailAsync(long id, CancellationToken cancellationToken = default)
     {
+        var cacheKey = $"catalog:product:{id}";
+        var cached = await _cache.GetAsync<CatalogProductDetailResponse>(cacheKey, cancellationToken);
+        if (cached is not null) return cached;
+
         var product = await _unitOfWork.Repository<Product>().GetByIdAsync(id, cancellationToken);
         if (product is null || product.Status != ProductStatus.OnSale)
         {
@@ -71,7 +98,7 @@ public class CatalogService : ICatalogService
         var skus = await _unitOfWork.Repository<ProductSku>()
             .GetListAsync(x => x.ProductId == id && x.IsEnabled, cancellationToken);
 
-        return new CatalogProductDetailResponse
+        var detail = new CatalogProductDetailResponse
         {
             Id = baseInfo.Id,
             Name = baseInfo.Name,
@@ -90,9 +117,15 @@ public class CatalogService : ICatalogService
                 Stock = x.Stock
             }).ToList()
         };
+
+        await _cache.SetAsync(cacheKey, detail, TimeSpan.FromMinutes(10), cancellationToken);
+        return detail;
     }
 
-    public async Task<long> CreateStoreOrderAsync(StoreOrderCreateRequest request, CancellationToken cancellationToken = default)
+    public async Task<long> CreateStoreOrderAsync(
+        StoreOrderCreateRequest request,
+        long? customerId = null,
+        CancellationToken cancellationToken = default)
     {
         if (request.Quantity <= 0)
         {
@@ -126,6 +159,7 @@ public class CatalogService : ICatalogService
                 OrderNo = $"WS{DateTime.UtcNow:yyyyMMddHHmmss}{Random.Shared.Next(1000, 9999)}",
                 Status = OrderStatus.PendingPayment,
                 TotalAmount = sku.Price * request.Quantity,
+                CustomerId = customerId,
                 ReceiverName = request.ReceiverName,
                 ReceiverPhone = request.ReceiverPhone,
                 ReceiverAddress = request.ReceiverAddress
@@ -148,6 +182,7 @@ public class CatalogService : ICatalogService
                 cancellationToken);
         }, cancellationToken);
 
+        await _cache.RemoveAsync(ProductsCacheKey, cancellationToken);
         return orderId;
     }
 

@@ -10,18 +10,21 @@ builder.Host.UseSerilog((context, config) =>
     config.ReadFrom.Configuration(context.Configuration).WriteTo.Console());
 
 builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddStoreSwagger();
+builder.Services.AddStoreRateLimiting();
+builder.Services.AddStoreHealthChecks(builder.Configuration);
 
 builder.Services.AddApplication(builder.Configuration);
 builder.Services.AddInfrastructure();
 builder.Services.AddRedisCache(builder.Configuration);
+builder.Services.AddStoreJwtAuthentication(builder.Configuration);
 
 var app = builder.Build();
 
 app.UseExceptionHandling();
 app.UseDatabaseInitializer();
 app.UseSerilogRequestLogging();
+app.UseRateLimiter();
 
 if (app.Environment.IsDevelopment())
 {
@@ -30,6 +33,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapStoreHealthChecks();
 app.MapControllers();
 
 app.Run();

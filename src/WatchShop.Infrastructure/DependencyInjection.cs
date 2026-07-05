@@ -6,6 +6,9 @@ using SqlSugar;
 using WatchShop.Application.Abstractions;
 using WatchShop.Application.Contracts.Persistence;
 using WatchShop.Application.Features.Catalog;
+using WatchShop.Application.Features.Dashboard;
+using WatchShop.Application.Features.OperationLogs;
+using WatchShop.Application.Features.Store;
 using WatchShop.Application.Options;
 using WatchShop.Infrastructure.Background;
 using WatchShop.Infrastructure.Caching;
@@ -64,6 +67,11 @@ public static class DependencyInjection
         services.AddScoped<IProductSkuService, ProductSkuService>();
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<ICatalogService, CatalogService>();
+        services.AddScoped<IStoreAuthService, StoreAuthService>();
+        services.AddScoped<ICartService, CartService>();
+        services.AddScoped<IStoreOrderService, StoreOrderService>();
+        services.AddScoped<IDashboardService, DashboardService>();
+        services.AddScoped<IOperationLogQueryService, OperationLogQueryService>();
 
         return services;
     }

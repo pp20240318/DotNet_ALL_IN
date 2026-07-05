@@ -8,5 +8,5 @@ public interface ICatalogService
     Task<List<CatalogCategoryResponse>> GetCategoriesAsync(CancellationToken cancellationToken = default);
     Task<List<CatalogProductResponse>> GetOnSaleProductsAsync(CancellationToken cancellationToken = default);
     Task<CatalogProductDetailResponse?> GetProductDetailAsync(long id, CancellationToken cancellationToken = default);
-    Task<long> CreateStoreOrderAsync(StoreOrderCreateRequest request, CancellationToken cancellationToken = default);
+    Task<long> CreateStoreOrderAsync(StoreOrderCreateRequest request, long? customerId = null, CancellationToken cancellationToken = default);
 }

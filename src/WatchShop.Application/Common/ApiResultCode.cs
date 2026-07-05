@@ -16,5 +16,6 @@ public static class ApiResultCode
     public const int Unauthorized = 401;
     public const int Forbidden = 403;
     public const int NotFound = 404;
+    public const int ValidationError = 422;
     public const int InternalError = 500;
 }

@@ -17,15 +17,18 @@ public class DbInitializer
     {
         _db.CodeFirst.InitTables(
             typeof(Admin),
+            typeof(Customer),
             typeof(Brand),
             typeof(Category),
             typeof(Product),
             typeof(ProductSku),
+            typeof(CartItem),
             typeof(ShopOrder),
             typeof(OrderItem),
             typeof(OperationLog));
 
         SeedAdminUser();
+        SeedCustomerUser();
         SeedCatalogData();
     }
 
@@ -47,10 +50,30 @@ public class DbInitializer
         }).ExecuteCommand();
     }
 
+    private void SeedCustomerUser()
+    {
+        const string demoUsername = "demo";
+        if (_db.Queryable<Customer>().Any(x => x.Username == demoUsername))
+        {
+            return;
+        }
+
+        _db.Insertable(new Customer
+        {
+            Username = demoUsername,
+            PasswordHash = PasswordHasher.Hash("Demo@123"),
+            Nickname = "演示用户",
+            Phone = "13800138000",
+            IsEnabled = true,
+            CreatedAt = DateTime.UtcNow
+        }).ExecuteCommand();
+    }
+
     private void SeedCatalogData()
     {
         if (_db.Queryable<Brand>().Any())
         {
+            SeedSkusIfMissing();
             return;
         }
 
@@ -58,9 +81,27 @@ public class DbInitializer
         var omegaId = InsertBrand("Omega", "瑞士欧米茄");
         var mechanicalId = InsertCategory("机械表");
         var quartzId = InsertCategory("石英表");
-        InsertProduct("Rolex Submariner", rolexId, mechanicalId, 88000m);
-        InsertProduct("Omega Seamaster", omegaId, mechanicalId, 52000m);
-        InsertProduct("Casio Classic", omegaId, quartzId, 899m);
+        var p1 = InsertProduct("Rolex Submariner", rolexId, mechanicalId, 88000m);
+        var p2 = InsertProduct("Omega Seamaster", omegaId, mechanicalId, 52000m);
+        var p3 = InsertProduct("Casio Classic", omegaId, quartzId, 899m);
+        InsertSku(p1, "SUB-BLK-001", "{\"color\":\"黑\"}", 88000m, 50);
+        InsertSku(p2, "SEA-BLU-001", "{\"color\":\"蓝\"}", 52000m, 30);
+        InsertSku(p3, "CAS-SLV-001", "{\"color\":\"银\"}", 899m, 200);
+    }
+
+    private void SeedSkusIfMissing()
+    {
+        if (_db.Queryable<ProductSku>().Any())
+        {
+            return;
+        }
+
+        var products = _db.Queryable<Product>().Where(x => !x.IsDeleted).ToList();
+        foreach (var product in products)
+        {
+            InsertSku(product.Id, $"{product.Name[..Math.Min(3, product.Name.Length)].ToUpper()}-001",
+                "{\"default\":true}", product.Price, 100);
+        }
     }
 
     private long InsertBrand(string name, string description)
@@ -98,7 +139,7 @@ public class DbInitializer
         return entity.Id;
     }
 
-    private void InsertProduct(string name, long brandId, long categoryId, decimal price)
+    private long InsertProduct(string name, long brandId, long categoryId, decimal price)
     {
         var entity = new Product
         {
@@ -115,5 +156,24 @@ public class DbInitializer
             UpdatedAt = DateTime.UtcNow
         };
         _db.Insertable(entity).ExecuteCommand();
+        return entity.Id;
+    }
+
+    private void InsertSku(long productId, string skuCode, string specJson, decimal price, int stock)
+    {
+        _db.Insertable(new ProductSku
+        {
+            Id = SnowFlakeSingle.Instance.NextId(),
+            ProductId = productId,
+            SkuCode = skuCode,
+            SpecJson = specJson,
+            Price = price,
+            Stock = stock,
+            IsEnabled = true,
+            IsDeleted = false,
+            Version = 0,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        }).ExecuteCommand();
     }
 }
