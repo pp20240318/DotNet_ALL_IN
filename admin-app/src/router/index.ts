@@ -41,6 +41,12 @@ const routes: RouteRecordRaw[] = [
         meta: { permission: 'order:read', title: '订单管理' },
       },
       {
+        path: 'customers',
+        name: 'customers',
+        component: () => import('../views/CustomersView.vue'),
+        meta: { permission: 'customer:read', title: '客户管理' },
+      },
+      {
         path: 'notifications',
         name: 'notifications',
         component: () => import('../views/NotificationsView.vue'),

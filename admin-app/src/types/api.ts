@@ -139,3 +139,13 @@ export type AdminUser = {
   isEnabled: boolean
   roles: string[]
 }
+
+export type Customer = {
+  id: number
+  username: string
+  nickname?: string
+  phone?: string
+  email?: string
+  isEnabled: boolean
+  createdAt: string
+}

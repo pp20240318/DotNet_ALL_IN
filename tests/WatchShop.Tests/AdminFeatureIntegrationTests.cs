@@ -167,6 +167,17 @@ public class AdminFeatureIntegrationTests : IClassFixture<WebApplicationFactory<
         Assert.False(updated.IsEnabled);
     }
 
+    [Fact]
+    public async Task Admin_Can_List_Customers()
+    {
+        var adminClient = await CreateAuthenticatedClientAsync("admin", "Admin@123");
+        var response = await adminClient.GetAsync("/customers?page=1&pageSize=10");
+        response.EnsureSuccessStatusCode();
+        var json = await response.Content.ReadAsStringAsync();
+        Assert.Contains("\"code\":0", json);
+        Assert.Contains("demo", json, StringComparison.OrdinalIgnoreCase);
+    }
+
     private async Task<HttpClient> CreateAuthenticatedClientAsync(string username, string password)
     {
         var client = _factory.CreateClient();

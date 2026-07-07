@@ -8,18 +8,19 @@ public static class AppPermissions
     public const string OrderWrite = "order:write";
     public const string BrandWrite = "brand:write";
     public const string DashboardRead = "dashboard:read";
+    public const string CustomerRead = "customer:read";
     public const string SystemAdmin = "system:admin";
 
     public static readonly string[] All =
     [
         ProductRead, ProductWrite, OrderRead, OrderWrite,
-        BrandWrite, DashboardRead, SystemAdmin
+        BrandWrite, DashboardRead, CustomerRead, SystemAdmin
     ];
 
     public static readonly IReadOnlyDictionary<string, string[]> RolePermissions = new Dictionary<string, string[]>
     {
         ["SuperAdmin"] = All,
-        ["Operator"] = [ProductRead, ProductWrite, OrderRead, OrderWrite, BrandWrite, DashboardRead],
+        ["Operator"] = [ProductRead, ProductWrite, OrderRead, OrderWrite, BrandWrite, DashboardRead, CustomerRead],
         ["Viewer"] = [ProductRead, OrderRead, DashboardRead]
     };
 }

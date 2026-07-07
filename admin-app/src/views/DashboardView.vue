@@ -36,6 +36,7 @@ const quickLinks = computed(() => {
   const links = [
     { label: '商品管理', path: '/products', permission: 'product:read' },
     { label: '订单管理', path: '/orders', permission: 'order:read' },
+    { label: '客户管理', path: '/customers', permission: 'customer:read' },
     { label: '通知中心', path: '/notifications', permission: 'dashboard:read', badge: notifications.unreadCount },
     { label: '操作日志', path: '/operation-logs', permission: 'system:admin' },
   ]

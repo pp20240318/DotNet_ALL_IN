@@ -51,6 +51,7 @@ const menu = computed(() => [
   { path: '/brands', label: '品牌', permission: 'product:read', icon: Collection },
   { path: '/categories', label: '分类', permission: 'product:read', icon: MenuIcon },
   { path: '/orders', label: '订单', permission: 'order:read', icon: List },
+  { path: '/customers', label: '客户', permission: 'customer:read', icon: User },
   { path: '/notifications', label: '通知', permission: 'dashboard:read', icon: Message },
   { path: '/operation-logs', label: '操作日志', permission: 'system:admin', icon: Document },
   { path: '/rbac', label: 'RBAC', permission: 'system:admin', icon: Setting },
