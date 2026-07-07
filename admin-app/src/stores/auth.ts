@@ -15,6 +15,7 @@ type AuthState = {
 }
 
 const STORAGE_KEY = 'watchshop_admin_auth_v1'
+const REMEMBER_USERNAME_KEY = 'watchshop_admin_remember_username'
 
 export const useAuthStore = defineStore('auth', {
   state: (): AuthState => ({
@@ -46,6 +47,27 @@ export const useAuthStore = defineStore('auth', {
     },
     hasPermission(permission: string) {
       return this.roles.includes('SuperAdmin') || this.permissions.includes(permission) || this.permissions.includes('system:admin')
+    },
+    getRememberedUsername() {
+      return localStorage.getItem(REMEMBER_USERNAME_KEY) ?? ''
+    },
+    rememberUsername(username: string) {
+      localStorage.setItem(REMEMBER_USERNAME_KEY, username)
+    },
+    forgetUsername() {
+      localStorage.removeItem(REMEMBER_USERNAME_KEY)
+    },
+    async ensureSession() {
+      if (!this.token) return
+      if (this.expiresAt && this.refreshToken) {
+        const expires = new Date(this.expiresAt).getTime()
+        if (!Number.isNaN(expires) && expires - Date.now() < 5 * 60 * 1000) {
+          await this.refresh()
+        }
+      }
+      if (!this.permissions.length && this.token) {
+        await this.fetchMe()
+      }
     },
     async login(username: string, password: string) {
       const res = await api.post<LoginResponse>('/auth/login', { username, password })

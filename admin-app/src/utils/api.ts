@@ -60,6 +60,26 @@ export const api = {
     const resp = await http.put<ApiEnvelope<T>>(url, body)
     return unwrap(resp.data)
   },
+  async delete<T>(url: string): Promise<T> {
+    const resp = await http.delete<ApiEnvelope<T>>(url)
+    return unwrap(resp.data)
+  },
+  async upload<T>(url: string, file: File, fieldName = 'file'): Promise<T> {
+    const form = new FormData()
+    form.append(fieldName, file)
+    const resp = await http.post<ApiEnvelope<T>>(url, form)
+    return unwrap(resp.data)
+  },
+}
+
+export function getApiErrorMessage(error: unknown, fallback = '请求失败'): string {
+  if (error instanceof AxiosError) {
+    const data = error.response?.data as ApiEnvelope<unknown> | undefined
+    if (data?.message) return data.message
+    if (error.message) return error.message
+  }
+  if (error instanceof Error) return error.message
+  return fallback
 }
 
 function unwrap<T>(env: ApiEnvelope<T>): T {

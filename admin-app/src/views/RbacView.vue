@@ -3,8 +3,10 @@ import { onMounted, reactive, ref } from 'vue'
 import { api } from '../utils/api'
 import { ElMessage } from 'element-plus'
 
-const roles = ref<any[]>([])
-const admins = ref<any[]>([])
+import type { AdminUser, RoleInfo } from '../types/api'
+
+const roles = ref<RoleInfo[]>([])
+const admins = ref<AdminUser[]>([])
 const loading = ref(false)
 
 const assignDialog = ref(false)
@@ -14,8 +16,8 @@ const selectedRoles = ref<string[]>([])
 async function load() {
   loading.value = true
   try {
-    roles.value = await api.get('/roles')
-    admins.value = await api.get('/roles/admins')
+    roles.value = await api.get<RoleInfo[]>('/roles')
+    admins.value = await api.get<AdminUser[]>('/roles/admins')
   } catch (e: any) {
     ElMessage.error(e?.message ?? '加载失败')
   } finally {
@@ -96,8 +98,16 @@ onMounted(load)
             <el-table-column prop="id" label="ID" width="170" />
             <el-table-column prop="username" label="用户名" width="120" />
             <el-table-column prop="displayName" label="显示名" width="120" />
-            <el-table-column prop="isEnabled" label="启用" width="70" />
-            <el-table-column prop="roles" label="角色" />
+            <el-table-column label="启用" width="70">
+              <template #default="{ row }">
+                <el-tag :type="row.isEnabled ? 'success' : 'info'" size="small">{{ row.isEnabled ? '是' : '否' }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="roles" label="角色">
+              <template #default="{ row }">
+                <el-tag v-for="r in row.roles" :key="r" size="small" style="margin-right: 4px">{{ r }}</el-tag>
+              </template>
+            </el-table-column>
             <el-table-column label="操作" width="110">
               <template #default="{ row }">
                 <el-button size="small" @click="openAssign(row)">分配</el-button>

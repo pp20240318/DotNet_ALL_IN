@@ -1,4 +1,6 @@
 import { HubConnectionBuilder, LogLevel, type HubConnection } from '@microsoft/signalr'
+import { ElNotification } from 'element-plus'
+import { useNotificationStore } from '../stores/notifications'
 
 let connection: HubConnection | null = null
 
@@ -12,9 +14,15 @@ export function connectNotifications(token: string) {
     .configureLogging(LogLevel.Warning)
     .build()
 
-  connection.on('ReceiveNotification', (msg) => {
-    // keep it simple: log + browser notification later
-    console.log('[notification]', msg)
+  connection.on('ReceiveNotification', (msg: { title?: string; content?: string }) => {
+    const notifications = useNotificationStore()
+    notifications.bumpUnread()
+    ElNotification({
+      title: msg?.title ?? '新通知',
+      message: msg?.content ?? '',
+      type: 'info',
+      duration: 5000,
+    })
   })
 
   connection.start().catch((err) => {
@@ -28,4 +36,3 @@ export function disconnectNotifications() {
   connection = null
   c.stop().catch(() => {})
 }
-
