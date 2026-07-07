@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { api } from '../utils/api'
+import { api, getApiErrorMessage } from '../utils/api'
 import { useNotificationStore } from '../stores/notifications'
 import { ElMessage } from 'element-plus'
 import type { Notification, PagedResult } from '../types/api'
@@ -24,8 +24,8 @@ async function load() {
     items.value = res.items ?? []
     total.value = res.total ?? 0
     await notifications.refreshUnreadCount()
-  } catch (e: any) {
-    ElMessage.error(e?.message ?? '加载失败')
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '加载失败'))
   } finally {
     loading.value = false
   }
@@ -38,8 +38,8 @@ async function markRead(row: Notification) {
     row.isRead = true
     notifications.markReadLocally()
     ElMessage.success('已标记已读')
-  } catch (e: any) {
-    ElMessage.error(e?.message ?? '操作失败')
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '操作失败'))
   }
 }
 
@@ -49,8 +49,8 @@ async function markAllRead() {
     notifications.clearUnread()
     ElMessage.success('全部已读')
     await load()
-  } catch (e: any) {
-    ElMessage.error(e?.message ?? '操作失败')
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '操作失败'))
   }
 }
 

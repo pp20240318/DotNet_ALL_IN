@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
-import { api, getApiErrorMessage, http } from '../utils/api'
+import { api, getApiErrorMessage } from '../utils/api'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { Product, ProductSku } from '../types/api'
 import { formatMoney } from '../utils/format'
@@ -108,7 +108,7 @@ async function stockIn(row: ProductSku) {
       inputPattern: /^[1-9]\d*$/,
       inputErrorMessage: '请输入正整数',
     })
-    await http.post(`/skus/${row.id}/stock-in?quantity=${value}`)
+    await api.post(`/skus/${row.id}/stock-in`, undefined, { quantity: Number(value) })
     ElMessage.success('入库成功')
     await load()
   } catch (e) {
@@ -122,7 +122,7 @@ async function stockOut(row: ProductSku) {
       inputPattern: /^[1-9]\d*$/,
       inputErrorMessage: '请输入正整数',
     })
-    await http.post(`/skus/${row.id}/stock-out?quantity=${value}`)
+    await api.post(`/skus/${row.id}/stock-out`, undefined, { quantity: Number(value) })
     ElMessage.success('出库成功')
     await load()
   } catch (e) {

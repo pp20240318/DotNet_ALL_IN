@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { api } from '../utils/api'
+import { api, getApiErrorMessage } from '../utils/api'
 import { ElMessage } from 'element-plus'
 import type { OperationLog, PagedResult } from '../types/api'
 import { formatDateTime } from '../utils/format'
@@ -20,8 +20,8 @@ async function load() {
     const res = await api.get<PagedResult<OperationLog>>('/operation-logs', params)
     items.value = res.items ?? []
     total.value = res.total ?? 0
-  } catch (e: any) {
-    ElMessage.error(e?.message ?? '加载失败')
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '加载失败'))
   } finally {
     loading.value = false
   }

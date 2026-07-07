@@ -52,8 +52,8 @@ export const api = {
     const resp = await http.get<ApiEnvelope<T>>(url, { params })
     return unwrap(resp.data)
   },
-  async post<T>(url: string, body?: any): Promise<T> {
-    const resp = await http.post<ApiEnvelope<T>>(url, body)
+  async post<T>(url: string, body?: any, params?: Record<string, unknown>): Promise<T> {
+    const resp = await http.post<ApiEnvelope<T>>(url, body, { params })
     return unwrap(resp.data)
   },
   async put<T>(url: string, body?: any): Promise<T> {

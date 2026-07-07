@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
-import { api } from '../utils/api'
+import { api, getApiErrorMessage } from '../utils/api'
 import { useAuthStore } from '../stores/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { Category, PagedResult } from '../types/api'
@@ -30,8 +30,8 @@ async function load() {
     const res = await api.get<PagedResult<Category>>('/categories', { page: page.value, pageSize: pageSize.value })
     items.value = res.items ?? []
     total.value = res.total ?? 0
-  } catch (e: any) {
-    ElMessage.error(e?.message ?? '加载失败')
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '加载失败'))
   } finally {
     loading.value = false
   }
@@ -82,8 +82,8 @@ async function save() {
     }
     dialogVisible.value = false
     await load()
-  } catch (e: any) {
-    ElMessage.error(e?.message ?? '保存失败')
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '保存失败'))
   }
 }
 
@@ -93,8 +93,8 @@ async function remove(row: Category) {
     await api.delete(`/categories/${row.id}`)
     ElMessage.success('删除成功')
     await load()
-  } catch (e: any) {
-    if (e !== 'cancel') ElMessage.error(e?.message ?? '删除失败')
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error(getApiErrorMessage(e, '删除失败'))
   }
 }
 

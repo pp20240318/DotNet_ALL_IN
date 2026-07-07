@@ -4,6 +4,7 @@ import { connectNotifications } from '../utils/signalr'
 
 const routes: RouteRecordRaw[] = [
   { path: '/login', name: 'login', component: () => import('../views/LoginView.vue'), meta: { title: '登录' } },
+  { path: '/forbidden', name: 'forbidden', component: () => import('../views/ForbiddenView.vue'), meta: { title: '无权访问' } },
   {
     path: '/',
     component: () => import('../views/LayoutView.vue'),
@@ -76,7 +77,7 @@ router.beforeEach(async (to) => {
   const auth = useAuthStore()
   auth.hydrate()
 
-  if (to.name === 'not-found') return true
+  if (to.name === 'not-found' || to.name === 'forbidden') return true
 
   if (to.path === '/login') {
     if (auth.isLoggedIn) return { path: '/dashboard' }
@@ -99,5 +100,5 @@ router.beforeEach(async (to) => {
   if (!required) return true
   if (auth.hasPermission(required)) return true
 
-  return { path: '/dashboard' }
+  return { path: '/forbidden', query: { from: to.fullPath } }
 })

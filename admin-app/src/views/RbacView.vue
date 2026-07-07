@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
-import { api } from '../utils/api'
+import { api, getApiErrorMessage } from '../utils/api'
 import { ElMessage } from 'element-plus'
-
 import type { AdminUser, RoleInfo } from '../types/api'
 
 const roles = ref<RoleInfo[]>([])
@@ -10,35 +9,64 @@ const admins = ref<AdminUser[]>([])
 const loading = ref(false)
 
 const assignDialog = ref(false)
-const selectedAdmin = ref<any>(null)
+const selectedAdmin = ref<AdminUser | null>(null)
 const selectedRoles = ref<string[]>([])
+
+const editDialog = ref(false)
+const editForm = reactive({
+  displayName: '',
+  isEnabled: true,
+})
 
 async function load() {
   loading.value = true
   try {
     roles.value = await api.get<RoleInfo[]>('/roles')
     admins.value = await api.get<AdminUser[]>('/roles/admins')
-  } catch (e: any) {
-    ElMessage.error(e?.message ?? '加载失败')
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '加载失败'))
   } finally {
     loading.value = false
   }
 }
 
-function openAssign(row: any) {
+function openAssign(row: AdminUser) {
   selectedAdmin.value = row
   selectedRoles.value = [...(row.roles ?? [])]
   assignDialog.value = true
 }
 
 async function saveAssign() {
+  if (!selectedAdmin.value) return
   try {
     await api.put(`/roles/admins/${selectedAdmin.value.id}/roles`, { roles: selectedRoles.value })
     ElMessage.success('保存成功')
     assignDialog.value = false
     await load()
-  } catch (e: any) {
-    ElMessage.error(e?.message ?? '保存失败')
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '保存失败'))
+  }
+}
+
+function openEdit(row: AdminUser) {
+  selectedAdmin.value = row
+  editForm.displayName = row.displayName
+  editForm.isEnabled = row.isEnabled
+  editDialog.value = true
+}
+
+async function saveEdit() {
+  if (!selectedAdmin.value) return
+  try {
+    await api.put(`/roles/admins/${selectedAdmin.value.id}`, {
+      displayName: editForm.displayName.trim(),
+      isEnabled: editForm.isEnabled,
+    })
+    ElMessage.success('更新成功')
+    editDialog.value = false
+    await load()
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '更新失败'))
   }
 }
 
@@ -60,8 +88,8 @@ async function createAdmin() {
     createForm.displayName = ''
     createForm.roles = []
     await load()
-  } catch (e: any) {
-    ElMessage.error(e?.message ?? '创建失败')
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '创建失败'))
   }
 }
 
@@ -108,15 +136,34 @@ onMounted(load)
                 <el-tag v-for="r in row.roles" :key="r" size="small" style="margin-right: 4px">{{ r }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="110">
+            <el-table-column label="操作" width="150" fixed="right">
               <template #default="{ row }">
-                <el-button size="small" @click="openAssign(row)">分配</el-button>
+                <el-button size="small" link type="primary" @click="openEdit(row as AdminUser)">编辑</el-button>
+                <el-button size="small" link @click="openAssign(row as AdminUser)">分配</el-button>
               </template>
             </el-table-column>
           </el-table>
         </el-card>
       </el-col>
     </el-row>
+
+    <el-dialog v-model="editDialog" title="编辑管理员" width="420px">
+      <el-form label-position="top">
+        <el-form-item label="用户名">
+          <el-input :model-value="selectedAdmin?.username" disabled />
+        </el-form-item>
+        <el-form-item label="显示名">
+          <el-input v-model="editForm.displayName" />
+        </el-form-item>
+        <el-form-item label="启用">
+          <el-switch v-model="editForm.isEnabled" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="editDialog = false">取消</el-button>
+        <el-button type="primary" @click="saveEdit">保存</el-button>
+      </template>
+    </el-dialog>
 
     <el-dialog v-model="assignDialog" title="分配角色" width="420px">
       <div style="margin-bottom: 8px">管理员：{{ selectedAdmin?.username }}</div>
@@ -153,4 +200,3 @@ onMounted(load)
     </el-dialog>
   </el-card>
 </template>
-

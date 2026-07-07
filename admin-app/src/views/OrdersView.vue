@@ -51,8 +51,8 @@ async function exportCsv() {
   try {
     const resp = await http.get('/orders/export', { responseType: 'blob' })
     downloadBlob(new Blob([resp.data], { type: 'text/csv;charset=utf-8' }), `orders_${Date.now()}.csv`)
-  } catch (e: any) {
-    ElMessage.error(e?.message ?? '导出失败')
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '导出失败'))
   }
 }
 
@@ -62,8 +62,8 @@ async function openDetail(row: OrderListItem) {
   detail.value = null
   try {
     detail.value = await api.get<OrderDetail>(`/orders/${row.id}`)
-  } catch (e: any) {
-    ElMessage.error(e?.message ?? '加载详情失败')
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '加载详情失败'))
     detailVisible.value = false
   } finally {
     detailLoading.value = false
@@ -77,8 +77,8 @@ async function ship(row: OrderListItem) {
     ElMessage.success('发货成功')
     await load()
     if (detail.value?.id === row.id) await openDetail(row)
-  } catch (e: any) {
-    if (e !== 'cancel') ElMessage.error(e?.message ?? '发货失败')
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error(getApiErrorMessage(e, '发货失败'))
   }
 }
 
@@ -89,8 +89,8 @@ async function cancel(row: OrderListItem) {
     ElMessage.success('取消成功')
     await load()
     if (detail.value?.id === row.id) await openDetail(row)
-  } catch (e: any) {
-    if (e !== 'cancel') ElMessage.error(e?.message ?? '取消失败')
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error(getApiErrorMessage(e, '取消失败'))
   }
 }
 
@@ -99,8 +99,8 @@ async function createDemo() {
     await api.post('/orders/demo')
     ElMessage.success('演示订单已创建')
     await load()
-  } catch (e: any) {
-    ElMessage.error(e?.message ?? '创建失败')
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '创建失败'))
   }
 }
 
