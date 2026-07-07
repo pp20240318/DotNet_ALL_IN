@@ -21,6 +21,7 @@ builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddWatchShopAuthorization();
 builder.Services.AddWatchShopSignalR();
 builder.Services.AddWatchShopHangfire(builder.Configuration);
+builder.Services.AddAdminCors(builder.Configuration);
 builder.Services.AddSwaggerWithJwt();
 
 var app = builder.Build();
@@ -37,6 +38,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseAdminCors();
 app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
