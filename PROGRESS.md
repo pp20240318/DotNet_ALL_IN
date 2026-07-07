@@ -1,6 +1,6 @@
 # WatchShop 生产化进度
 
-最后更新：2026-07-07
+最后更新：2026-07-07（第二轮）
 
 ## 已完成
 
@@ -12,41 +12,47 @@
 - [x] 删除 HelloWorld 脚手架
 
 ### P1 — 工程化
-- [x] GitHub Actions CI（dotnet test + admin-app/store-app build）
+- [x] GitHub Actions CI（dotnet test + 双前端 build + lint）
 - [x] 根目录 README（从零启动指南）
 - [x] `admin-app/.env.production.example`
+- [x] `deploy/PRODUCTION.md` 生产密钥说明
 
 ### P2 — Docker
-- [x] `Dockerfile.admin-web` + `deploy/nginx/admin.conf`
-- [x] `Dockerfile.store-web` + `deploy/nginx/store.conf`
-- [x] docker-compose 增加 admin-web (:8082) / store-web (:8083)
+- [x] nginx 托管 admin-app / store-app
+- [x] docker-compose 全栈（:8082 / :8083）
 
 ### P3 — 测试
-- [x] 删除 `UnitTest1` 占位
-- [x] 新增管理员更新集成测试
+- [x] 删除 UnitTest1 占位
+- [x] 管理员更新、客户列表、Store 登录/购物车集成测试
 
 ### P4 — store-app MVP
-- [x] 商品目录、详情、加购
-- [x] 登录、购物车、结算、我的订单（模拟支付/取消）
+- [x] 商品目录、详情、加购、结算、订单
+- [x] 用户注册页
+
+### P5 — 本轮新增
+- [x] 客户管理 API（`GET /customers` + `customer:read` 权限）
+- [x] admin-app 客户管理页 + 菜单/仪表盘入口
+- [x] store-app 注册页
+- [x] ESLint（admin-app + store-app）
 
 ## 验收状态
 
 | 项 | 状态 |
 |----|------|
-| `dotnet test WatchShop.slnx` | 待每次提交前验证 |
+| `dotnet test WatchShop.slnx` | 24/24 通过 |
 | `admin-app pnpm build` | 通过 |
+| `admin-app pnpm lint` | 通过 |
 | `store-app pnpm build` | 通过 |
-| docker-compose 文档 | README 已写 |
+| `store-app pnpm lint` | 通过 |
 
 ## 待办 / 可选深化
 
-- [ ] 生产密钥管理（User Secrets / 环境变量注入，勿提交真实值）
-- [ ] admin-app / store-app E2E 测试（Playwright）
-- [ ] ESLint + Prettier
+- [ ] Playwright E2E
+- [ ] Prettier 格式化
 - [ ] 订单退款 API + UI
-- [ ] 客户管理后台页
-- [ ] Elasticsearch/Redis 全开环境下的集成验证
+- [ ] 客户启用/禁用编辑（需后端写 API）
+- [ ] Elasticsearch/Redis 全开环境联调
 
 ## 阻塞项
 
-无（本地 dotnet test 若失败，先停止正在运行的 Admin.Api 进程再 rebuild）
+无
