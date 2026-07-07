@@ -3,6 +3,7 @@ import { useAuthStore } from '../stores/auth'
 
 const routes: RouteRecordRaw[] = [
   { path: '/login', name: 'login', component: () => import('../views/LoginView.vue'), meta: { title: '登录' } },
+  { path: '/register', name: 'register', component: () => import('../views/RegisterView.vue'), meta: { title: '注册' } },
   {
     path: '/',
     component: () => import('../views/LayoutView.vue'),
@@ -24,7 +25,7 @@ router.beforeEach(async (to) => {
   const auth = useAuthStore()
   auth.hydrate()
 
-  if (to.path === '/login') {
+  if (to.path === '/login' || to.path === '/register') {
     if (auth.isLoggedIn) return { path: '/' }
     return true
   }

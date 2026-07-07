@@ -88,7 +88,7 @@ docker compose up -d --build
 | RabbitMQ 管理台 | http://localhost:15672 (guest/guest) |
 | MinIO Console | http://localhost:9001 (minioadmin/minioadmin) |
 
-首次启动会自动 Code First 建表并种子数据。生产环境请修改 `appsettings.Production.json` 中的 JWT 密钥、Webhook Secret 等。
+首次启动会自动 Code First 建表并种子数据。生产环境配置见 [deploy/PRODUCTION.md](deploy/PRODUCTION.md)。
 
 ## 测试
 

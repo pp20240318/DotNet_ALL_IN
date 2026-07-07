@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { api, getApiErrorMessage } from '../utils/api'
 import { useAuthStore } from '../stores/auth'
-import { getApiErrorMessage } from '../utils/api'
 import { ElMessage } from 'element-plus'
+import type { LoginResponse } from '../types/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -13,21 +14,30 @@ const loading = ref(false)
 const form = reactive({
   username: '',
   password: '',
+  nickname: '',
+  phone: '',
 })
 
 async function onSubmit() {
   if (!form.username.trim() || !form.password) {
-    ElMessage.warning('请输入用户名和密码')
+    ElMessage.warning('请填写用户名和密码')
     return
   }
   loading.value = true
   try {
-    await auth.login(form.username.trim(), form.password)
-    await auth.fetchMe().catch(() => {})
+    const res = await api.post<LoginResponse>('/store/auth/register', {
+      username: form.username.trim(),
+      password: form.password,
+      nickname: form.nickname.trim() || undefined,
+      phone: form.phone.trim() || undefined,
+    })
+    auth.applyLogin(res)
+    auth.persist()
+    ElMessage.success('注册成功')
     const redirect = (route.query.redirect as string | undefined) ?? '/'
     await router.replace(redirect)
   } catch (e) {
-    ElMessage.error(getApiErrorMessage(e, '登录失败'))
+    ElMessage.error(getApiErrorMessage(e, '注册失败'))
   } finally {
     loading.value = false
   }
@@ -37,19 +47,24 @@ async function onSubmit() {
 <template>
   <div class="page">
     <el-card class="card">
-      <h2>登录 WatchShop</h2>
-      <p class="hint">演示账号：demo / Demo@123</p>
+      <h2>注册账号</h2>
       <el-form label-position="top" @submit.prevent="onSubmit">
-        <el-form-item label="用户名">
+        <el-form-item label="用户名" required>
           <el-input v-model="form.username" autocomplete="username" />
         </el-form-item>
-        <el-form-item label="密码">
-          <el-input v-model="form.password" type="password" show-password autocomplete="current-password" />
+        <el-form-item label="密码" required>
+          <el-input v-model="form.password" type="password" show-password autocomplete="new-password" />
         </el-form-item>
-        <el-button type="primary" native-type="submit" :loading="loading" style="width: 100%">登录</el-button>
+        <el-form-item label="昵称">
+          <el-input v-model="form.nickname" />
+        </el-form-item>
+        <el-form-item label="手机">
+          <el-input v-model="form.phone" />
+        </el-form-item>
+        <el-button type="primary" native-type="submit" :loading="loading" style="width: 100%">注册</el-button>
         <div class="foot">
-          没有账号？
-          <el-button link type="primary" @click="router.push('/register')">去注册</el-button>
+          已有账号？
+          <el-button link type="primary" @click="router.push('/login')">去登录</el-button>
         </div>
       </el-form>
     </el-card>
@@ -68,17 +83,12 @@ async function onSubmit() {
   max-width: calc(100vw - 32px);
 }
 h2 {
-  margin: 0 0 8px;
+  margin: 0 0 16px;
 }
 .foot {
   margin-top: 12px;
   text-align: center;
   font-size: 13px;
   color: #888;
-}
-.hint {
-  margin: 0 0 16px;
-  color: #888;
-  font-size: 13px;
 }
 </style>
