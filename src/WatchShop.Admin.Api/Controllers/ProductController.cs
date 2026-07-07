@@ -22,8 +22,8 @@ public class ProductController : ApiControllerBase
 
     [HttpGet]
     [RequirePermission(AppPermissions.ProductRead)]
-    public async Task<IActionResult> GetPaged([FromQuery] ProductQueryRequest query)
-        => Success(await _mediator.Send(new GetProductsPagedQuery(query)));
+    public async Task<IActionResult> GetPaged([FromQuery] ProductQueryRequest? query)
+        => Success(await _mediator.Send(new GetProductsPagedQuery(query ?? new ProductQueryRequest())));
 
     [HttpGet("{id:long}")]
     [RequirePermission(AppPermissions.ProductRead)]

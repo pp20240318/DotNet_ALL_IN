@@ -6,6 +6,7 @@ using WatchShop.Domain.Entities;
 using WatchShop.Domain.Enums;
 using WatchShop.Application.Features.Catalog;
 using WatchShop.Infrastructure.Caching;
+using System.Linq.Expressions;
 
 namespace WatchShop.Infrastructure.Services;
 
@@ -100,14 +101,11 @@ public class ProductService : IProductService
 
     public async Task<PagedResult<ProductResponse>> GetPagedAsync(ProductQueryRequest query, CancellationToken cancellationToken = default)
     {
+        var predicate = HasProductFilter(query) ? BuildProductFilter(query) : null;
         var paged = await _unitOfWork.Repository<Product>().GetPagedAsync(
             query.Page,
             query.PageSize,
-            x =>
-                (string.IsNullOrWhiteSpace(query.Keyword) || x.Name.Contains(query.Keyword!)) &&
-                (!query.BrandId.HasValue || x.BrandId == query.BrandId) &&
-                (!query.CategoryId.HasValue || x.CategoryId == query.CategoryId) &&
-                (!query.Status.HasValue || x.Status == query.Status),
+            predicate,
             cancellationToken);
 
         var items = new List<ProductResponse>();
@@ -163,6 +161,30 @@ public class ProductService : IProductService
             CoverImage = entity.CoverImage,
             Version = entity.Version
         };
+    }
+
+    private static bool HasProductFilter(ProductQueryRequest query)
+        => !string.IsNullOrWhiteSpace(query.Keyword)
+            || query.BrandId.HasValue
+            || query.CategoryId.HasValue
+            || query.Status.HasValue;
+
+    private static Expression<Func<Product, bool>> BuildProductFilter(ProductQueryRequest query)
+    {
+        if (string.IsNullOrWhiteSpace(query.Keyword))
+        {
+            return x =>
+                (!query.BrandId.HasValue || x.BrandId == query.BrandId) &&
+                (!query.CategoryId.HasValue || x.CategoryId == query.CategoryId) &&
+                (!query.Status.HasValue || x.Status == query.Status);
+        }
+
+        var keyword = query.Keyword;
+        return x =>
+            x.Name.Contains(keyword) &&
+            (!query.BrandId.HasValue || x.BrandId == query.BrandId) &&
+            (!query.CategoryId.HasValue || x.CategoryId == query.CategoryId) &&
+            (!query.Status.HasValue || x.Status == query.Status);
     }
 
     private static string GetCacheKey(long id) => $"product:{id}";

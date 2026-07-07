@@ -30,6 +30,7 @@ public class OperationLogController : ApiControllerBase
     public OperationLogController(IMediator mediator) => _mediator = mediator;
 
     [HttpGet]
+    [RequirePermission(AppPermissions.SystemAdmin)]
     public async Task<IActionResult> GetPaged([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? module = null)
         => Success(await _mediator.Send(new GetOperationLogsPagedQuery(page, pageSize, module)));
 }

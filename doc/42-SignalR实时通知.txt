@@ -1,0 +1,11 @@
+================================================================================
+步骤 42：SignalR 实时通知
+================================================================================
+完成日期：2026-07-07
+
+【Hub】/hubs/notifications（JWT：?access_token=xxx 或 Authorization Header）
+【事件】ReceiveNotification — 订单创建/取消时推送
+【实现】INotificationPushService → SignalRNotificationPushService（Admin.Api）
+【Store.Api】使用 NullNotificationPushService（无推送）
+
+================================================================================

@@ -1,7 +1,9 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using WatchShop.Admin.Api.Authorization;
 using WatchShop.Admin.Api.Filters;
+using WatchShop.Application.Authorization;
 using WatchShop.Application.Features.Categories;
 
 namespace WatchShop.Admin.Api.Controllers;
@@ -16,10 +18,12 @@ public class CategoryController : ApiControllerBase
     public CategoryController(IMediator mediator) => _mediator = mediator;
 
     [HttpGet]
+    [RequirePermission(AppPermissions.ProductRead)]
     public async Task<IActionResult> GetPaged([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         => Success(await _mediator.Send(new GetCategoriesPagedQuery(page, pageSize)));
 
     [HttpGet("{id:long}")]
+    [RequirePermission(AppPermissions.ProductRead)]
     public async Task<IActionResult> GetById(long id)
     {
         var item = await _mediator.Send(new GetCategoryByIdQuery(id));
@@ -27,10 +31,12 @@ public class CategoryController : ApiControllerBase
     }
 
     [HttpPost]
+    [RequirePermission(AppPermissions.ProductWrite)]
     public async Task<IActionResult> Create([FromBody] Application.Abstractions.CategoryCreateRequest request)
         => Success(new { id = await _mediator.Send(new CreateCategoryCommand(request)) }, "创建成功");
 
     [HttpPut("{id:long}")]
+    [RequirePermission(AppPermissions.ProductWrite)]
     public async Task<IActionResult> Update(long id, [FromBody] Application.Abstractions.CategoryUpdateRequest request)
     {
         await _mediator.Send(new UpdateCategoryCommand(id, request));
@@ -38,6 +44,7 @@ public class CategoryController : ApiControllerBase
     }
 
     [HttpDelete("{id:long}")]
+    [RequirePermission(AppPermissions.ProductWrite)]
     public async Task<IActionResult> Delete(long id)
     {
         await _mediator.Send(new DeleteCategoryCommand(id));

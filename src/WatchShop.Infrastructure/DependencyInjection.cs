@@ -74,6 +74,7 @@ public static class DependencyInjection
         services.AddScoped<IOperationLogQueryService, OperationLogQueryService>();
         services.AddScoped<ICatalogCacheInvalidator, CatalogCacheInvalidator>();
         services.AddScoped<INotificationService, NotificationService>();
+        services.AddSingleton<INotificationPushService, NullNotificationPushService>();
         services.AddWatchShopSearch(configuration);
         services.AddWatchShopStorage(configuration);
 

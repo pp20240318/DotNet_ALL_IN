@@ -18,6 +18,7 @@ builder.Services.AddRedisCache(builder.Configuration);
 builder.Services.AddWatchShopHealthChecks(builder.Configuration);
 builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddWatchShopAuthorization();
+builder.Services.AddWatchShopSignalR();
 builder.Services.AddWatchShopHangfire(builder.Configuration);
 builder.Services.AddSwaggerWithJwt();
 
@@ -41,6 +42,7 @@ app.UseAuthorization();
 app.MapWatchShopHealthChecks();
 app.MapWatchShopMetrics();
 app.UseWatchShopHangfire();
+app.MapWatchShopSignalR();
 app.MapControllers().RequireRateLimiting("admin-fixed");
 
 app.Run();

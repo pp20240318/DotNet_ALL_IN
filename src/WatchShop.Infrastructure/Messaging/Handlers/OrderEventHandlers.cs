@@ -9,11 +9,16 @@ namespace WatchShop.Infrastructure.Messaging.Handlers;
 public class OrderCreatedEventHandler : IIntegrationEventHandler<OrderCreatedEvent>
 {
     private readonly ISqlSugarClient _db;
+    private readonly INotificationPushService _pushService;
     private readonly ILogger<OrderCreatedEventHandler> _logger;
 
-    public OrderCreatedEventHandler(ISqlSugarClient db, ILogger<OrderCreatedEventHandler> logger)
+    public OrderCreatedEventHandler(
+        ISqlSugarClient db,
+        INotificationPushService pushService,
+        ILogger<OrderCreatedEventHandler> logger)
     {
         _db = db;
+        _pushService = pushService;
         _logger = logger;
     }
 
@@ -21,7 +26,7 @@ public class OrderCreatedEventHandler : IIntegrationEventHandler<OrderCreatedEve
     {
         _logger.LogInformation("Order created: {OrderNo} (Id={OrderId})", @event.OrderNo, @event.OrderId);
 
-        await _db.Insertable(new Notification
+        var notification = new Notification
         {
             Id = SnowFlakeSingle.Instance.NextId(),
             Title = "新订单",
@@ -32,18 +37,34 @@ public class OrderCreatedEventHandler : IIntegrationEventHandler<OrderCreatedEve
             IsDeleted = false,
             Version = 0,
             CreatedAt = DateTime.UtcNow
-        }).ExecuteCommandAsync();
+        };
+
+        await _db.Insertable(notification).ExecuteCommandAsync();
+        await _pushService.PushAsync(new NotificationPushMessage
+        {
+            Id = notification.Id,
+            Title = notification.Title,
+            Content = notification.Content,
+            Category = notification.Category,
+            RelatedId = notification.RelatedId,
+            CreatedAt = notification.CreatedAt
+        }, cancellationToken);
     }
 }
 
 public class OrderCancelledEventHandler : IIntegrationEventHandler<OrderCancelledEvent>
 {
     private readonly ISqlSugarClient _db;
+    private readonly INotificationPushService _pushService;
     private readonly ILogger<OrderCancelledEventHandler> _logger;
 
-    public OrderCancelledEventHandler(ISqlSugarClient db, ILogger<OrderCancelledEventHandler> logger)
+    public OrderCancelledEventHandler(
+        ISqlSugarClient db,
+        INotificationPushService pushService,
+        ILogger<OrderCancelledEventHandler> logger)
     {
         _db = db;
+        _pushService = pushService;
         _logger = logger;
     }
 
@@ -51,7 +72,7 @@ public class OrderCancelledEventHandler : IIntegrationEventHandler<OrderCancelle
     {
         _logger.LogInformation("Order cancelled: {OrderNo}, reason={Reason}", @event.OrderNo, @event.Reason);
 
-        await _db.Insertable(new Notification
+        var notification = new Notification
         {
             Id = SnowFlakeSingle.Instance.NextId(),
             Title = "订单取消",
@@ -62,6 +83,17 @@ public class OrderCancelledEventHandler : IIntegrationEventHandler<OrderCancelle
             IsDeleted = false,
             Version = 0,
             CreatedAt = DateTime.UtcNow
-        }).ExecuteCommandAsync();
+        };
+
+        await _db.Insertable(notification).ExecuteCommandAsync();
+        await _pushService.PushAsync(new NotificationPushMessage
+        {
+            Id = notification.Id,
+            Title = notification.Title,
+            Content = notification.Content,
+            Category = notification.Category,
+            RelatedId = notification.RelatedId,
+            CreatedAt = notification.CreatedAt
+        }, cancellationToken);
     }
 }

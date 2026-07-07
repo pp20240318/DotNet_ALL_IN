@@ -48,6 +48,7 @@ public class DbInitializer
 
         SeedRoles();
         SeedAdminUser();
+        SeedDemoAdmins();
         SeedCustomerUser();
         SeedCatalogData();
     }
@@ -93,6 +94,38 @@ public class DbInitializer
             {
                 AdminId = admin.Id,
                 RoleCode = AppRoles.SuperAdmin
+            }).ExecuteCommand();
+        }
+    }
+
+    private void SeedDemoAdmins()
+    {
+        SeedAdminWithRole("operator", "Operator@123", "运营员", AppRoles.Operator);
+        SeedAdminWithRole("viewer", "Viewer@123", "只读用户", AppRoles.Viewer);
+    }
+
+    private void SeedAdminWithRole(string username, string password, string displayName, string roleCode)
+    {
+        var admin = _db.Queryable<Admin>().First(x => x.Username == username);
+        if (admin is null)
+        {
+            admin = new Admin
+            {
+                Username = username,
+                PasswordHash = PasswordHasher.Hash(password),
+                DisplayName = displayName,
+                IsEnabled = true,
+                CreatedAt = DateTime.UtcNow
+            };
+            admin.Id = _db.Insertable(admin).ExecuteReturnIdentity();
+        }
+
+        if (!_db.Queryable<AdminRole>().Any(x => x.AdminId == admin.Id && x.RoleCode == roleCode))
+        {
+            _db.Insertable(new AdminRole
+            {
+                AdminId = admin.Id,
+                RoleCode = roleCode
             }).ExecuteCommand();
         }
     }

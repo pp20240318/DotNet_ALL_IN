@@ -1,7 +1,9 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using WatchShop.Admin.Api.Authorization;
 using WatchShop.Admin.Api.Filters;
+using WatchShop.Application.Authorization;
 using WatchShop.Application.Abstractions;
 using WatchShop.Application.Features.ProductSkus;
 
@@ -17,10 +19,12 @@ public class ProductSkuController : ApiControllerBase
     public ProductSkuController(IMediator mediator) => _mediator = mediator;
 
     [HttpGet("by-product/{productId:long}")]
+    [RequirePermission(AppPermissions.ProductRead)]
     public async Task<IActionResult> GetByProductId(long productId)
         => Success(await _mediator.Send(new GetSkusByProductQuery(productId)));
 
     [HttpGet("{id:long}")]
+    [RequirePermission(AppPermissions.ProductRead)]
     public async Task<IActionResult> GetById(long id)
     {
         var item = await _mediator.Send(new GetSkuByIdQuery(id));
@@ -28,10 +32,12 @@ public class ProductSkuController : ApiControllerBase
     }
 
     [HttpPost]
+    [RequirePermission(AppPermissions.ProductWrite)]
     public async Task<IActionResult> Create([FromBody] ProductSkuCreateRequest request)
         => Success(new { id = await _mediator.Send(new CreateSkuCommand(request)) }, "创建成功");
 
     [HttpPut("{id:long}")]
+    [RequirePermission(AppPermissions.ProductWrite)]
     public async Task<IActionResult> Update(long id, [FromBody] ProductSkuUpdateRequest request)
     {
         await _mediator.Send(new UpdateSkuCommand(id, request));
@@ -39,6 +45,7 @@ public class ProductSkuController : ApiControllerBase
     }
 
     [HttpPost("{id:long}/stock-in")]
+    [RequirePermission(AppPermissions.ProductWrite)]
     public async Task<IActionResult> StockIn(long id, [FromQuery] int quantity)
     {
         await _mediator.Send(new StockInCommand(id, quantity));
@@ -46,6 +53,7 @@ public class ProductSkuController : ApiControllerBase
     }
 
     [HttpPost("{id:long}/stock-out")]
+    [RequirePermission(AppPermissions.ProductWrite)]
     public async Task<IActionResult> StockOut(long id, [FromQuery] int quantity)
     {
         await _mediator.Send(new StockOutCommand(id, quantity));
@@ -53,6 +61,7 @@ public class ProductSkuController : ApiControllerBase
     }
 
     [HttpDelete("{id:long}")]
+    [RequirePermission(AppPermissions.ProductWrite)]
     public async Task<IActionResult> Delete(long id)
     {
         await _mediator.Send(new DeleteSkuCommand(id));

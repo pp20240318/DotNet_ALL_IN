@@ -2,6 +2,7 @@ using System.Text.Json;
 using SqlSugar;
 using WatchShop.Application.Abstractions;
 using WatchShop.Application.Authorization;
+using WatchShop.Application.Features.Rbac;
 using WatchShop.Domain.Entities;
 
 namespace WatchShop.Infrastructure.Security;
@@ -53,5 +54,34 @@ public class RbacService : IRbacService
         var permissions = await GetPermissionsAsync(adminId, cancellationToken);
         return permissions.Contains(permission, StringComparer.OrdinalIgnoreCase)
             || permissions.Contains(AppPermissions.SystemAdmin, StringComparer.OrdinalIgnoreCase);
+    }
+
+    public async Task<IReadOnlyList<RoleResponse>> GetAllRolesAsync(CancellationToken cancellationToken = default)
+    {
+        var roles = await _db.Queryable<Role>().OrderBy(x => x.Code).ToListAsync();
+        return roles.Select(role => new RoleResponse
+        {
+            Code = role.Code,
+            Name = role.Name,
+            Permissions = JsonSerializer.Deserialize<string[]>(role.PermissionsJson) ?? []
+        }).ToList();
+    }
+
+    public async Task<IReadOnlyList<AdminRoleResponse>> GetAllAdminsWithRolesAsync(CancellationToken cancellationToken = default)
+    {
+        var admins = await _db.Queryable<Admin>().OrderBy(x => x.Id).ToListAsync();
+        var adminRoles = await _db.Queryable<AdminRole>().ToListAsync();
+        var roleLookup = adminRoles
+            .GroupBy(x => x.AdminId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.RoleCode).ToList());
+
+        return admins.Select(admin => new AdminRoleResponse
+        {
+            Id = admin.Id,
+            Username = admin.Username,
+            DisplayName = admin.DisplayName,
+            IsEnabled = admin.IsEnabled,
+            Roles = roleLookup.TryGetValue(admin.Id, out var roles) ? roles : []
+        }).ToList();
     }
 }
