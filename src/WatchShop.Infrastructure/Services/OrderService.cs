@@ -1,4 +1,6 @@
 using SqlSugar;
+using System.Linq.Expressions;
+using System.Text;
 using WatchShop.Application.Abstractions;
 using WatchShop.Application.Contracts.Persistence;
 using WatchShop.Application.Common;
@@ -26,12 +28,11 @@ public class OrderService : IOrderService
 
     public async Task<PagedResult<OrderListResponse>> GetPagedAsync(OrderQueryRequest query, CancellationToken cancellationToken = default)
     {
+        var predicate = HasOrderFilter(query) ? BuildOrderFilter(query) : null;
         var paged = await _unitOfWork.Repository<ShopOrder>().GetPagedAsync(
             query.Page,
             query.PageSize,
-            x =>
-                (string.IsNullOrWhiteSpace(query.OrderNo) || x.OrderNo.Contains(query.OrderNo!)) &&
-                (!query.Status.HasValue || x.Status == query.Status),
+            predicate,
             cancellationToken);
 
         return new PagedResult<OrderListResponse>
@@ -138,6 +139,61 @@ public class OrderService : IOrderService
         }, cancellationToken);
 
         return orderId;
+    }
+
+    public async Task<byte[]> ExportCsvAsync(OrderStatus? status = null, int maxRows = 5000, CancellationToken cancellationToken = default)
+    {
+        maxRows = Math.Clamp(maxRows, 1, 10000);
+        Expression<Func<ShopOrder, bool>>? predicate = status.HasValue
+            ? x => x.Status == status.Value
+            : null;
+
+        var orders = await _unitOfWork.Repository<ShopOrder>().GetListAsync(predicate, cancellationToken);
+        var builder = new StringBuilder();
+        builder.AppendLine("Id,OrderNo,Status,TotalAmount,CreatedAt");
+
+        foreach (var order in orders.Take(maxRows))
+        {
+            builder.Append(order.Id).Append(',')
+                .Append(EscapeCsv(order.OrderNo)).Append(',')
+                .Append(order.Status).Append(',')
+                .Append(order.TotalAmount).Append(',')
+                .Append(order.CreatedAt.ToString("O"))
+                .AppendLine();
+        }
+
+        return Encoding.UTF8.GetBytes(builder.ToString());
+    }
+
+    private static bool HasOrderFilter(OrderQueryRequest query)
+        => !string.IsNullOrWhiteSpace(query.OrderNo) || query.Status.HasValue;
+
+    private static Expression<Func<ShopOrder, bool>> BuildOrderFilter(OrderQueryRequest query)
+    {
+        if (!string.IsNullOrWhiteSpace(query.OrderNo))
+        {
+            var orderNo = query.OrderNo;
+            if (query.Status.HasValue)
+            {
+                var status = query.Status.Value;
+                return x => x.OrderNo.Contains(orderNo) && x.Status == status;
+            }
+
+            return x => x.OrderNo.Contains(orderNo);
+        }
+
+        var onlyStatus = query.Status!.Value;
+        return x => x.Status == onlyStatus;
+    }
+
+    private static string EscapeCsv(string value)
+    {
+        if (value.Contains(',') || value.Contains('"') || value.Contains('\n'))
+        {
+            return $"\"{value.Replace("\"", "\"\"")}\"";
+        }
+
+        return value;
     }
 
     private static OrderListResponse MapList(ShopOrder order) => new()

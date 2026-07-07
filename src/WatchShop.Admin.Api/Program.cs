@@ -9,6 +9,7 @@ builder.AddSerilogLogging();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddWatchShopApiVersioning();
 builder.Services.AddWatchShopOpenTelemetry("WatchShop.Admin.Api");
 builder.Services.AddAdminRateLimiting();
 

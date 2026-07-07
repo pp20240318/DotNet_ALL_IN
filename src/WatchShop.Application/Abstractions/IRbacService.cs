@@ -9,4 +9,5 @@ public interface IRbacService
     Task<bool> HasPermissionAsync(long adminId, string permission, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RoleResponse>> GetAllRolesAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AdminRoleResponse>> GetAllAdminsWithRolesAsync(CancellationToken cancellationToken = default);
+    Task SetAdminRolesAsync(long adminId, IReadOnlyList<string> roles, CancellationToken cancellationToken = default);
 }

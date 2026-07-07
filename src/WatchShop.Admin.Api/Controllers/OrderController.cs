@@ -6,6 +6,7 @@ using WatchShop.Admin.Api.Filters;
 using WatchShop.Application.Abstractions;
 using WatchShop.Application.Authorization;
 using WatchShop.Application.Features.Orders;
+using WatchShop.Domain.Enums;
 
 namespace WatchShop.Admin.Api.Controllers;
 
@@ -20,8 +21,17 @@ public class OrderController : ApiControllerBase
 
     [HttpGet]
     [RequirePermission(AppPermissions.OrderRead)]
-    public async Task<IActionResult> GetPaged([FromQuery] OrderQueryRequest query)
-        => Success(await _mediator.Send(new GetOrdersPagedQuery(query)));
+    public async Task<IActionResult> GetPaged([FromQuery] OrderQueryRequest? query)
+        => Success(await _mediator.Send(new GetOrdersPagedQuery(query ?? new OrderQueryRequest())));
+
+    [HttpGet("export")]
+    [RequirePermission(AppPermissions.OrderRead)]
+    public async Task<IActionResult> Export([FromQuery] OrderStatus? status, [FromQuery] int maxRows = 5000)
+    {
+        var bytes = await _mediator.Send(new ExportOrdersQuery(status, maxRows));
+        var fileName = $"orders_{DateTime.UtcNow:yyyyMMddHHmmss}.csv";
+        return File(bytes, "text/csv; charset=utf-8", fileName);
+    }
 
     [HttpGet("{id:long}")]
     [RequirePermission(AppPermissions.OrderRead)]

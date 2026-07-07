@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Asp.Versioning;
+using Microsoft.AspNetCore.Mvc;
 using WatchShop.Application.Common;
 
 namespace WatchShop.Admin.Api.Controllers;
@@ -7,6 +8,7 @@ namespace WatchShop.Admin.Api.Controllers;
 /// Controller 基类，提供统一成功/失败响应
 /// </summary>
 [ApiController]
+[ApiVersion("1.0")]
 public abstract class ApiControllerBase : ControllerBase
 {
     protected IActionResult Success<T>(T data, string message = "success")

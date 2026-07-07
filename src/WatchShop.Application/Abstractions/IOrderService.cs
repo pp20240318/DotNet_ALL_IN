@@ -10,6 +10,7 @@ public interface IOrderService
     Task ShipAsync(long id, CancellationToken cancellationToken = default);
     Task CancelAsync(long id, CancellationToken cancellationToken = default);
     Task<long> CreateDemoOrderAsync(CancellationToken cancellationToken = default);
+    Task<byte[]> ExportCsvAsync(OrderStatus? status = null, int maxRows = 5000, CancellationToken cancellationToken = default);
 }
 
 public class OrderQueryRequest

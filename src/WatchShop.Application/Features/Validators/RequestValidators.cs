@@ -123,3 +123,13 @@ public class CartAddRequestValidator : AbstractValidator<CartAddRequest>
         RuleFor(x => x.Quantity).GreaterThan(0);
     }
 }
+
+public class SetAdminRolesCommandValidator : AbstractValidator<Rbac.SetAdminRolesCommand>
+{
+    public SetAdminRolesCommandValidator()
+    {
+        RuleFor(x => x.AdminId).GreaterThan(0);
+        RuleFor(x => x.Roles).NotEmpty();
+        RuleForEach(x => x.Roles).NotEmpty();
+    }
+}

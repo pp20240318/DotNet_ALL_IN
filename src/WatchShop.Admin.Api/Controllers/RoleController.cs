@@ -24,4 +24,12 @@ public class RoleController : ApiControllerBase
     [RequirePermission(AppPermissions.SystemAdmin)]
     public async Task<IActionResult> GetAdmins()
         => Success(await _mediator.Send(new GetAllAdminsQuery()));
+
+    [HttpPut("admins/{adminId:long}/roles")]
+    [RequirePermission(AppPermissions.SystemAdmin)]
+    public async Task<IActionResult> SetAdminRoles(long adminId, [FromBody] SetAdminRolesRequest request)
+    {
+        await _mediator.Send(new SetAdminRolesCommand(adminId, request.Roles));
+        return Success(true, "角色分配成功");
+    }
 }
