@@ -135,6 +135,38 @@ public class AdminFeatureIntegrationTests : IClassFixture<WebApplicationFactory<
         Assert.Contains(list?.Data ?? [], x => x.Username == username);
     }
 
+    [Fact]
+    public async Task Admin_Can_Update_Admin_DisplayName_And_Disable()
+    {
+        var adminClient = await CreateAuthenticatedClientAsync("admin", "Admin@123");
+        var username = $"upd_{Guid.NewGuid():N}"[..12];
+
+        var createResponse = await adminClient.PostAsJsonAsync("/roles/admins", new
+        {
+            username,
+            password = "Test@12345",
+            displayName = "待更新",
+            roles = new[] { "Viewer" }
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<ApiResult<Dictionary<string, long>>>();
+        var adminId = created!.Data!["id"];
+
+        var updateResponse = await adminClient.PutAsJsonAsync($"/roles/admins/{adminId}", new
+        {
+            displayName = "已更新",
+            isEnabled = false
+        });
+        updateResponse.EnsureSuccessStatusCode();
+
+        var listResponse = await adminClient.GetAsync("/roles/admins");
+        var list = await listResponse.Content.ReadFromJsonAsync<ApiResult<List<AdminRoleResponse>>>();
+        var updated = list?.Data?.FirstOrDefault(x => x.Id == adminId);
+        Assert.NotNull(updated);
+        Assert.Equal("已更新", updated!.DisplayName);
+        Assert.False(updated.IsEnabled);
+    }
+
     private async Task<HttpClient> CreateAuthenticatedClientAsync(string username, string password)
     {
         var client = _factory.CreateClient();
