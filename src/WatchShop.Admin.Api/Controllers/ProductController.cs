@@ -25,6 +25,15 @@ public class ProductController : ApiControllerBase
     public async Task<IActionResult> GetPaged([FromQuery] ProductQueryRequest? query)
         => Success(await _mediator.Send(new GetProductsPagedQuery(query ?? new ProductQueryRequest())));
 
+    [HttpGet("export")]
+    [RequirePermission(AppPermissions.ProductRead)]
+    public async Task<IActionResult> Export([FromQuery] ProductStatus? status, [FromQuery] int maxRows = 5000)
+    {
+        var bytes = await _mediator.Send(new ExportProductsQuery(status, maxRows));
+        var fileName = $"products_{DateTime.UtcNow:yyyyMMddHHmmss}.csv";
+        return File(bytes, "text/csv; charset=utf-8", fileName);
+    }
+
     [HttpGet("{id:long}")]
     [RequirePermission(AppPermissions.ProductRead)]
     public async Task<IActionResult> GetById(long id)

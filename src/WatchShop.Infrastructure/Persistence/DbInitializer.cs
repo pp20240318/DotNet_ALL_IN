@@ -44,7 +44,8 @@ public class DbInitializer
             typeof(ShopOrder),
             typeof(OrderItem),
             typeof(OperationLog),
-            typeof(Notification));
+            typeof(Notification),
+            typeof(AdminRefreshToken));
 
         SeedRoles();
         SeedAdminUser();

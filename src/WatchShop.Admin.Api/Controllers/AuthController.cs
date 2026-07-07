@@ -19,6 +19,11 @@ public class AuthController : ApiControllerBase
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
         => Success(await _mediator.Send(new AdminLoginCommand(request)), "登录成功");
 
+    [HttpPost("refresh")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest request)
+        => Success(await _mediator.Send(new AdminRefreshCommand(request)), "刷新成功");
+
     [HttpGet("me")]
     [Authorize]
     public async Task<IActionResult> GetProfile()

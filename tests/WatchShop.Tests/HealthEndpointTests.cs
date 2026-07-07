@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace WatchShop.Tests;
 
+[Collection("AdminApi")]
 public class HealthEndpointTests : IClassFixture<WebApplicationFactory<WatchShop.Admin.Api.AdminApiEntryPoint>>
 {
     private readonly HttpClient _client;

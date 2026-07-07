@@ -61,6 +61,7 @@ public static class DependencyInjection
         services.AddScoped<OperationLogService>();
         services.AddScoped<IDatabaseHealthService, DatabaseHealthService>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IAdminManagementService, AdminManagementService>();
         services.AddScoped<IBrandService, BrandService>();
         services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<IProductService, ProductService>();

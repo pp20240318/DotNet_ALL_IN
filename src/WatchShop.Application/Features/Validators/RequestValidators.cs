@@ -133,3 +133,31 @@ public class SetAdminRolesCommandValidator : AbstractValidator<Rbac.SetAdminRole
         RuleForEach(x => x.Roles).NotEmpty();
     }
 }
+
+public class CreateAdminCommandValidator : AbstractValidator<Rbac.CreateAdminCommand>
+{
+    public CreateAdminCommandValidator()
+    {
+        RuleFor(x => x.Request.Username).NotEmpty().MinimumLength(3).MaximumLength(50);
+        RuleFor(x => x.Request.Password).NotEmpty().MinimumLength(6).MaximumLength(50);
+        RuleFor(x => x.Request.DisplayName).NotEmpty().MaximumLength(50);
+        RuleFor(x => x.Request.Roles).NotEmpty();
+    }
+}
+
+public class UpdateAdminCommandValidator : AbstractValidator<Rbac.UpdateAdminCommand>
+{
+    public UpdateAdminCommandValidator()
+    {
+        RuleFor(x => x.AdminId).GreaterThan(0);
+        RuleFor(x => x.Request.DisplayName).NotEmpty().MaximumLength(50);
+    }
+}
+
+public class AdminRefreshCommandValidator : AbstractValidator<Auth.AdminRefreshCommand>
+{
+    public AdminRefreshCommandValidator()
+    {
+        RuleFor(x => x.Request.RefreshToken).NotEmpty();
+    }
+}

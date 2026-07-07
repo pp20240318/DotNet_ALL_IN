@@ -11,6 +11,7 @@ public interface IProductService
     Task ChangeStatusAsync(long id, ProductStatus status, CancellationToken cancellationToken = default);
     Task<ProductResponse?> GetByIdAsync(long id, CancellationToken cancellationToken = default);
     Task<PagedResult<ProductResponse>> GetPagedAsync(ProductQueryRequest query, CancellationToken cancellationToken = default);
+    Task<byte[]> ExportCsvAsync(ProductStatus? status = null, int maxRows = 5000, CancellationToken cancellationToken = default);
 }
 
 public class ProductCreateRequest

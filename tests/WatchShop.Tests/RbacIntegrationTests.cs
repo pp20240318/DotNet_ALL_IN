@@ -4,9 +4,11 @@ using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using WatchShop.Application.Common;
 using WatchShop.Application.Dtos.Auth;
+using WatchShop.Application.Features.Rbac;
 
 namespace WatchShop.Tests;
 
+[Collection("AdminApi")]
 public class RbacIntegrationTests : IClassFixture<WebApplicationFactory<WatchShop.Admin.Api.AdminApiEntryPoint>>
 {
     private readonly WebApplicationFactory<WatchShop.Admin.Api.AdminApiEntryPoint> _factory;
@@ -19,6 +21,13 @@ public class RbacIntegrationTests : IClassFixture<WebApplicationFactory<WatchSho
     [Fact]
     public async Task Viewer_Can_Read_Products_But_Cannot_Write_Brand()
     {
+        var adminClient = await CreateAuthenticatedClientAsync("admin", "Admin@123");
+        var admins = await adminClient.GetAsync("/roles/admins");
+        var adminsEnvelope = await admins.Content.ReadFromJsonAsync<ApiResult<List<AdminRoleResponse>>>();
+        var viewer = adminsEnvelope?.Data?.FirstOrDefault(x => x.Username == "viewer");
+        Assert.NotNull(viewer);
+        await adminClient.PutAsJsonAsync($"/roles/admins/{viewer!.Id}/roles", new { roles = new[] { "Viewer" } });
+
         var client = await CreateAuthenticatedClientAsync("viewer", "Viewer@123");
 
         var readResponse = await client.GetAsync("/products?page=1&pageSize=10");

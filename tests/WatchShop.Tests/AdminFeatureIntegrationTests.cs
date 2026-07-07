@@ -8,6 +8,7 @@ using WatchShop.Application.Features.Rbac;
 
 namespace WatchShop.Tests;
 
+[Collection("AdminApi")]
 public class AdminFeatureIntegrationTests : IClassFixture<WebApplicationFactory<WatchShop.Admin.Api.AdminApiEntryPoint>>
 {
     private readonly WebApplicationFactory<WatchShop.Admin.Api.AdminApiEntryPoint> _factory;
@@ -86,6 +87,52 @@ public class AdminFeatureIntegrationTests : IClassFixture<WebApplicationFactory<
             new { roles = new[] { "NotExists" } });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Admin_Can_Export_Products_Csv()
+    {
+        var client = await CreateAuthenticatedClientAsync("admin", "Admin@123");
+        var response = await client.GetAsync("/products/export");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var csv = await response.Content.ReadAsStringAsync();
+        Assert.Contains("Name", csv);
+    }
+
+    [Fact]
+    public async Task Refresh_Token_Should_Issue_New_Access_Token()
+    {
+        var client = _factory.CreateClient();
+        var loginResponse = await client.PostAsJsonAsync("/auth/login", new { username = "admin", password = "Admin@123" });
+        var login = await loginResponse.Content.ReadFromJsonAsync<ApiResult<LoginResponse>>();
+        Assert.False(string.IsNullOrWhiteSpace(login?.Data?.RefreshToken));
+
+        var refreshResponse = await client.PostAsJsonAsync("/auth/refresh", new { refreshToken = login!.Data!.RefreshToken });
+        refreshResponse.EnsureSuccessStatusCode();
+        var refreshed = await refreshResponse.Content.ReadFromJsonAsync<ApiResult<LoginResponse>>();
+        Assert.False(string.IsNullOrWhiteSpace(refreshed?.Data?.Token));
+        Assert.NotEqual(login.Data.RefreshToken, refreshed!.Data!.RefreshToken);
+    }
+
+    [Fact]
+    public async Task Admin_Can_Create_New_Admin()
+    {
+        var adminClient = await CreateAuthenticatedClientAsync("admin", "Admin@123");
+        var username = $"test_{Guid.NewGuid():N}"[..12];
+
+        var createResponse = await adminClient.PostAsJsonAsync("/roles/admins", new
+        {
+            username,
+            password = "Test@12345",
+            displayName = "测试管理员",
+            roles = new[] { "Viewer" }
+        });
+        createResponse.EnsureSuccessStatusCode();
+
+        var listResponse = await adminClient.GetAsync("/roles/admins");
+        var list = await listResponse.Content.ReadFromJsonAsync<ApiResult<List<AdminRoleResponse>>>();
+        Assert.Contains(list?.Data ?? [], x => x.Username == username);
     }
 
     private async Task<HttpClient> CreateAuthenticatedClientAsync(string username, string password)

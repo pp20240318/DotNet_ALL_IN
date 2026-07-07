@@ -10,6 +10,7 @@ builder.Host.UseSerilog((context, config) =>
     config.ReadFrom.Configuration(context.Configuration).WriteTo.Console());
 
 builder.Services.AddControllers();
+builder.Services.AddWatchShopApiVersioning();
 builder.Services.AddStoreSwagger();
 builder.Services.AddStoreRateLimiting();
 builder.Services.AddStoreHealthChecks(builder.Configuration);

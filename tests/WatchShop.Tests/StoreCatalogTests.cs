@@ -20,4 +20,14 @@ public class StoreCatalogTests : IClassFixture<WebApplicationFactory<WatchShop.S
         var json = await response.Content.ReadAsStringAsync();
         Assert.Contains("\"code\":0", json);
     }
+
+    [Fact]
+    public async Task Store_Api_Version_Endpoint_Should_Return_V1()
+    {
+        var response = await _client.GetAsync("/api/version");
+        response.EnsureSuccessStatusCode();
+        var json = await response.Content.ReadAsStringAsync();
+        Assert.Contains("1.0", json);
+        Assert.Contains("WatchShop.Store.Api", json);
+    }
 }

@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WatchShop.Admin.Api.Authorization;
+using WatchShop.Application.Abstractions;
 using WatchShop.Application.Authorization;
 using WatchShop.Application.Features.Rbac;
 
@@ -24,6 +25,19 @@ public class RoleController : ApiControllerBase
     [RequirePermission(AppPermissions.SystemAdmin)]
     public async Task<IActionResult> GetAdmins()
         => Success(await _mediator.Send(new GetAllAdminsQuery()));
+
+    [HttpPost("admins")]
+    [RequirePermission(AppPermissions.SystemAdmin)]
+    public async Task<IActionResult> CreateAdmin([FromBody] CreateAdminRequest request)
+        => Success(new { id = await _mediator.Send(new CreateAdminCommand(request)) }, "创建成功");
+
+    [HttpPut("admins/{adminId:long}")]
+    [RequirePermission(AppPermissions.SystemAdmin)]
+    public async Task<IActionResult> UpdateAdmin(long adminId, [FromBody] UpdateAdminRequest request)
+    {
+        await _mediator.Send(new UpdateAdminCommand(adminId, request));
+        return Success(true, "更新成功");
+    }
 
     [HttpPut("admins/{adminId:long}/roles")]
     [RequirePermission(AppPermissions.SystemAdmin)]

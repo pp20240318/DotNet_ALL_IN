@@ -10,6 +10,7 @@ using WatchShop.Application.Options;
 using WatchShop.Domain.Entities;
 using WatchShop.Domain.Enums;
 using Microsoft.Extensions.Options;
+using WatchShop.Infrastructure.Common;
 
 namespace WatchShop.Infrastructure.Services;
 
@@ -155,7 +156,7 @@ public class OrderService : IOrderService
         foreach (var order in orders.Take(maxRows))
         {
             builder.Append(order.Id).Append(',')
-                .Append(EscapeCsv(order.OrderNo)).Append(',')
+                .Append(CsvHelper.Escape(order.OrderNo)).Append(',')
                 .Append(order.Status).Append(',')
                 .Append(order.TotalAmount).Append(',')
                 .Append(order.CreatedAt.ToString("O"))
@@ -184,16 +185,6 @@ public class OrderService : IOrderService
 
         var onlyStatus = query.Status!.Value;
         return x => x.Status == onlyStatus;
-    }
-
-    private static string EscapeCsv(string value)
-    {
-        if (value.Contains(',') || value.Contains('"') || value.Contains('\n'))
-        {
-            return $"\"{value.Replace("\"", "\"\"")}\"";
-        }
-
-        return value;
     }
 
     private static OrderListResponse MapList(ShopOrder order) => new()

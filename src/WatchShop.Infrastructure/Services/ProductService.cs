@@ -6,7 +6,9 @@ using WatchShop.Domain.Entities;
 using WatchShop.Domain.Enums;
 using WatchShop.Application.Features.Catalog;
 using WatchShop.Infrastructure.Caching;
+using WatchShop.Infrastructure.Common;
 using System.Linq.Expressions;
+using System.Text;
 
 namespace WatchShop.Infrastructure.Services;
 
@@ -121,6 +123,32 @@ public class ProductService : IProductService
             Total = paged.Total,
             Items = items
         };
+    }
+
+    public async Task<byte[]> ExportCsvAsync(ProductStatus? status = null, int maxRows = 5000, CancellationToken cancellationToken = default)
+    {
+        maxRows = Math.Clamp(maxRows, 1, 10000);
+        Expression<Func<Product, bool>>? predicate = status.HasValue
+            ? x => x.Status == status.Value
+            : null;
+
+        var products = await _unitOfWork.Repository<Product>().GetListAsync(predicate, cancellationToken);
+        var builder = new StringBuilder();
+        builder.AppendLine("Id,Name,BrandId,CategoryId,Price,Status,CreatedAt");
+
+        foreach (var product in products.Take(maxRows))
+        {
+            builder.Append(product.Id).Append(',')
+                .Append(CsvHelper.Escape(product.Name)).Append(',')
+                .Append(product.BrandId).Append(',')
+                .Append(product.CategoryId).Append(',')
+                .Append(product.Price).Append(',')
+                .Append(product.Status).Append(',')
+                .Append(product.CreatedAt.ToString("O"))
+                .AppendLine();
+        }
+
+        return Encoding.UTF8.GetBytes(builder.ToString());
     }
 
     private async Task EnsureBrandAndCategoryExist(long brandId, long categoryId, CancellationToken cancellationToken)
