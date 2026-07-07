@@ -23,6 +23,18 @@ public static class DependencyInjection
             configuration.GetSection(RedisOptions.SectionName));
         services.Configure<OrderOptions>(
             configuration.GetSection(OrderOptions.SectionName));
+        services.Configure<MessagingOptions>(
+            configuration.GetSection(MessagingOptions.SectionName));
+        services.Configure<FileStorageOptions>(
+            configuration.GetSection(FileStorageOptions.SectionName));
+        services.Configure<PaymentOptions>(
+            configuration.GetSection(PaymentOptions.SectionName));
+        services.Configure<MinioOptions>(
+            configuration.GetSection(MinioOptions.SectionName));
+        services.Configure<ElasticsearchOptions>(
+            configuration.GetSection(ElasticsearchOptions.SectionName));
+        services.Configure<HangfireOptions>(
+            configuration.GetSection(HangfireOptions.SectionName));
 
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
         services.AddMediatR(cfg =>

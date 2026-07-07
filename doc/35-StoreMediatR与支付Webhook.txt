@@ -1,0 +1,19 @@
+================================================================================
+步骤 35：Store MediatR 化 + 模拟支付 Webhook
+================================================================================
+完成日期：2026-07-05
+
+【Store 全模块 MediatR】
+  Catalog / Auth / Cart / Order 控制器全部 IMediator
+  Commands + Handlers 在 Application/Features/Store/
+
+【模拟支付回调】
+  POST /webhooks/payment/mock
+  Body: { "orderId": 1, "secret": "dev-webhook-secret" }
+  PaymentOptions.WebhookSecret 校验
+  PayOrderByWebhookAsync（无需用户 Token，模拟第三方支付通知）
+
+【CORS】
+  Store.Api 启用 store 策略（AllowAnyOrigin，便于前端联调）
+
+================================================================================

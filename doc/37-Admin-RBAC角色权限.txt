@@ -1,0 +1,12 @@
+================================================================================
+步骤 37：Admin RBAC 角色权限
+================================================================================
+完成日期：2026-07-05
+
+【角色】SuperAdmin / Operator / Viewer
+【权限】product:read/write, order:read/write, brand:write, dashboard:read, system:admin
+【JWT】登录 Token 携带 role + permission Claims
+【策略】[RequirePermission(AppPermissions.xxx)] 属性
+【种子】admin 用户默认 SuperAdmin
+
+================================================================================

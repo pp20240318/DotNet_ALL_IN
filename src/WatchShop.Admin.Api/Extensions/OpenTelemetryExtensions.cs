@@ -20,8 +20,14 @@ public static class OpenTelemetryExtensions
             .WithMetrics(metrics => metrics
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()
-                .AddConsoleExporter());
+                .AddPrometheusExporter());
 
         return services;
+    }
+
+    public static WebApplication MapWatchShopMetrics(this WebApplication app)
+    {
+        app.MapPrometheusScrapingEndpoint();
+        return app;
     }
 }

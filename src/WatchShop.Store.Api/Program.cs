@@ -15,8 +15,13 @@ builder.Services.AddStoreRateLimiting();
 builder.Services.AddStoreHealthChecks(builder.Configuration);
 builder.Services.AddWatchShopOpenTelemetry("WatchShop.Store.Api");
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("store", policy =>
+        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+});
 builder.Services.AddApplication(builder.Configuration);
-builder.Services.AddInfrastructure();
+builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddRedisCache(builder.Configuration);
 builder.Services.AddStoreJwtAuthentication(builder.Configuration);
 
@@ -34,9 +39,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("store");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapStoreHealthChecks();
+app.MapWatchShopMetrics();
 app.MapControllers();
 
 app.Run();

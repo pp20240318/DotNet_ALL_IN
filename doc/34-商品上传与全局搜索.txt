@@ -1,0 +1,20 @@
+================================================================================
+步骤 34：商品封面上传 + Admin 全局搜索
+================================================================================
+完成日期：2026-07-05
+
+【商品封面上传】
+  POST /products/{id}/cover  multipart/form-data
+  FileStorageOptions：本地 wwwroot/uploads
+  MediatR：UploadProductCoverCommand
+  上传后自动清除 Catalog 缓存
+
+【全局搜索】
+  GET /search?q=关键词&limit=20
+  聚合搜索：商品、品牌、订单号
+
+【技术点】
+  IFileStorageService、LocalFileStorageService
+  ISearchService、GlobalSearchQuery
+
+================================================================================

@@ -84,6 +84,22 @@ public class StoreOrderService : IStoreOrderService
         await repo.UpdateAsync(order, cancellationToken);
     }
 
+    public async Task PayOrderByWebhookAsync(long orderId, CancellationToken cancellationToken = default)
+    {
+        var repo = _unitOfWork.Repository<ShopOrder>();
+        var order = await repo.GetByIdAsync(orderId, cancellationToken)
+            ?? throw new BusinessException("订单不存在");
+
+        if (order.Status != OrderStatus.PendingPayment)
+        {
+            throw new BusinessException("订单状态不允许支付");
+        }
+
+        order.Status = OrderStatus.Paid;
+        order.PaidAt = DateTime.UtcNow;
+        await repo.UpdateAsync(order, cancellationToken);
+    }
+
     public async Task CancelOrderAsync(long customerId, long orderId, CancellationToken cancellationToken = default)
     {
         var repo = _unitOfWork.Repository<ShopOrder>();

@@ -12,11 +12,13 @@ public class AuthService : IAuthService
 {
     private readonly ISqlSugarClient _db;
     private readonly JwtTokenService _jwtTokenService;
+    private readonly IRbacService _rbacService;
 
-    public AuthService(ISqlSugarClient db, JwtTokenService jwtTokenService)
+    public AuthService(ISqlSugarClient db, JwtTokenService jwtTokenService, IRbacService rbacService)
     {
         _db = db;
         _jwtTokenService = jwtTokenService;
+        _rbacService = rbacService;
     }
 
     public async Task<LoginResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default)
@@ -29,14 +31,18 @@ public class AuthService : IAuthService
             throw new BusinessException(ApiResultCode.Unauthorized, "用户名或密码错误");
         }
 
-        var (token, expiresAt) = _jwtTokenService.CreateToken(admin);
+        var roles = await _rbacService.GetRoleCodesAsync(admin.Id, cancellationToken);
+        var permissions = await _rbacService.GetPermissionsAsync(admin.Id, cancellationToken);
+        var (token, expiresAt) = _jwtTokenService.CreateToken(admin, roles, permissions);
 
         return new LoginResponse
         {
             Token = token,
             ExpiresAt = expiresAt,
             Username = admin.Username,
-            DisplayName = admin.DisplayName
+            DisplayName = admin.DisplayName,
+            Roles = roles.ToList(),
+            Permissions = permissions.ToList()
         };
     }
 
@@ -50,11 +56,16 @@ public class AuthService : IAuthService
             throw new BusinessException(ApiResultCode.NotFound, "管理员不存在或已禁用");
         }
 
+        var roles = await _rbacService.GetRoleCodesAsync(adminId, cancellationToken);
+        var permissions = await _rbacService.GetPermissionsAsync(adminId, cancellationToken);
+
         return new AdminProfileResponse
         {
             Id = admin.Id,
             Username = admin.Username,
-            DisplayName = admin.DisplayName
+            DisplayName = admin.DisplayName,
+            Roles = roles.ToList(),
+            Permissions = permissions.ToList()
         };
     }
 }

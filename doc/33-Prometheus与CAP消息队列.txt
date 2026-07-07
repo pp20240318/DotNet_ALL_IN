@@ -1,0 +1,24 @@
+================================================================================
+步骤 33：Prometheus Metrics + CAP/RabbitMQ 可选消息队列
+================================================================================
+完成日期：2026-07-05
+
+【Prometheus】
+  GET /metrics（Admin + Store）
+  OpenTelemetry Prometheus Exporter
+
+【CAP + RabbitMQ（可选）】
+  Messaging:UseCap = false → 内存 Channel（开发默认）
+  Messaging:UseCap = true  → CAP + RabbitMQ（Docker Production）
+
+  配置节 Messaging：
+    UseCap, RabbitMqHost, RabbitMqPort, RabbitMqUser, RabbitMqPassword
+
+  事件主题：
+    watchshop.order.created
+    watchshop.order.cancelled
+
+【Docker】
+  rabbitmq:3-management → 5672 / 15672（管理界面）
+
+================================================================================

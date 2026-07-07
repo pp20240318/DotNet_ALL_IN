@@ -1,4 +1,6 @@
+using System.Text.Json;
 using SqlSugar;
+using WatchShop.Application.Authorization;
 using WatchShop.Domain.Entities;
 using WatchShop.Infrastructure.Security;
 
@@ -6,6 +8,7 @@ namespace WatchShop.Infrastructure.Persistence;
 
 public class DbInitializer
 {
+    private static readonly SemaphoreSlim InitLock = new(1, 1);
     private readonly ISqlSugarClient _db;
 
     public DbInitializer(ISqlSugarClient db)
@@ -15,8 +18,23 @@ public class DbInitializer
 
     public void Initialize()
     {
+        InitLock.Wait();
+        try
+        {
+            InitializeCore();
+        }
+        finally
+        {
+            InitLock.Release();
+        }
+    }
+
+    private void InitializeCore()
+    {
         _db.CodeFirst.InitTables(
             typeof(Admin),
+            typeof(Role),
+            typeof(AdminRole),
             typeof(Customer),
             typeof(Brand),
             typeof(Category),
@@ -28,27 +46,55 @@ public class DbInitializer
             typeof(OperationLog),
             typeof(Notification));
 
+        SeedRoles();
         SeedAdminUser();
         SeedCustomerUser();
         SeedCatalogData();
     }
 
+    private void SeedRoles()
+    {
+        foreach (var (code, permissions) in AppPermissions.RolePermissions)
+        {
+            if (_db.Queryable<Role>().Any(x => x.Code == code))
+            {
+                continue;
+            }
+
+            _db.Insertable(new Role
+            {
+                Code = code,
+                Name = code,
+                PermissionsJson = JsonSerializer.Serialize(permissions)
+            }).ExecuteCommand();
+        }
+    }
+
     private void SeedAdminUser()
     {
         const string defaultUsername = "admin";
-        if (_db.Queryable<Admin>().Any(x => x.Username == defaultUsername))
+        var admin = _db.Queryable<Admin>().First(x => x.Username == defaultUsername);
+        if (admin is null)
         {
-            return;
+            admin = new Admin
+            {
+                Username = defaultUsername,
+                PasswordHash = PasswordHasher.Hash("Admin@123"),
+                DisplayName = "系统管理员",
+                IsEnabled = true,
+                CreatedAt = DateTime.UtcNow
+            };
+            admin.Id = _db.Insertable(admin).ExecuteReturnIdentity();
         }
 
-        _db.Insertable(new Admin
+        if (!_db.Queryable<AdminRole>().Any(x => x.AdminId == admin.Id))
         {
-            Username = defaultUsername,
-            PasswordHash = PasswordHasher.Hash("Admin@123"),
-            DisplayName = "系统管理员",
-            IsEnabled = true,
-            CreatedAt = DateTime.UtcNow
-        }).ExecuteCommand();
+            _db.Insertable(new AdminRole
+            {
+                AdminId = admin.Id,
+                RoleCode = AppRoles.SuperAdmin
+            }).ExecuteCommand();
+        }
     }
 
     private void SeedCustomerUser()

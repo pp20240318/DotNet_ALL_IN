@@ -8,7 +8,12 @@
 
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+    <PackageReference Include="DotNetCore.CAP" Version="8.2.0" />
+    <PackageReference Include="DotNetCore.CAP.MySql" Version="8.2.0" />
+    <PackageReference Include="DotNetCore.CAP.RabbitMQ" Version="8.2.0" />
+    <PackageReference Include="Elastic.Clients.Elasticsearch" Version="8.17.1" />
     <PackageReference Include="FluentValidation" Version="11.11.0" />
+    <PackageReference Include="Minio" Version="6.0.4" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="8.0.1" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="8.0.11" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />

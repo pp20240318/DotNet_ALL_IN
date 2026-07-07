@@ -17,18 +17,42 @@ public class JwtTokenService
         _jwtOptions = jwtOptions.Value;
     }
 
-    public (string Token, DateTime ExpiresAt) CreateToken(Admin admin)
+    public (string Token, DateTime ExpiresAt) CreateToken(Admin admin, IEnumerable<string> roles, IEnumerable<string> permissions)
     {
-        return CreateTokenInternal(
-            _jwtOptions.Issuer,
-            _jwtOptions.Audience,
-            _jwtOptions.SecretKey,
-            _jwtOptions.ExpirationMinutes,
-            admin.Id,
-            admin.Username,
-            admin.DisplayName,
-            "admin");
+        var expiresAt = DateTime.UtcNow.AddMinutes(_jwtOptions.ExpirationMinutes);
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, admin.Id.ToString()),
+            new(ClaimTypes.Name, admin.Username),
+            new(ClaimTypes.Role, "admin"),
+            new("display_name", admin.DisplayName)
+        };
+
+        foreach (var role in roles.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            claims.Add(new Claim(ClaimTypes.Role, role));
+        }
+
+        foreach (var permission in permissions.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            claims.Add(new Claim("permission", permission));
+        }
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.SecretKey));
+        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var token = new JwtSecurityToken(
+            issuer: _jwtOptions.Issuer,
+            audience: _jwtOptions.Audience,
+            claims: claims,
+            expires: expiresAt,
+            signingCredentials: credentials);
+
+        return (new JwtSecurityTokenHandler().WriteToken(token), expiresAt);
     }
+
+    public (string Token, DateTime ExpiresAt) CreateToken(Admin admin)
+        => CreateToken(admin, [], []);
 
     public (string Token, DateTime ExpiresAt) CreateCustomerToken(Customer customer, StoreJwtOptions storeJwtOptions)
     {

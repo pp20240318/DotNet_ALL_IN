@@ -1,5 +1,4 @@
-﻿using System.Threading.Channels;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using SqlSugar;
@@ -9,21 +8,21 @@ using WatchShop.Application.Features.Catalog;
 using WatchShop.Application.Features.Notifications;
 using WatchShop.Application.Features.Dashboard;
 using WatchShop.Application.Features.OperationLogs;
+using WatchShop.Application.Features.Search;
 using WatchShop.Application.Features.Store;
 using WatchShop.Application.Options;
 using WatchShop.Infrastructure.Background;
 using WatchShop.Infrastructure.Caching;
-using WatchShop.Infrastructure.Messaging;
-using WatchShop.Infrastructure.Messaging.Handlers;
 using WatchShop.Infrastructure.Persistence;
 using WatchShop.Infrastructure.Security;
 using WatchShop.Infrastructure.Services;
+using WatchShop.Infrastructure.Storage;
 
 namespace WatchShop.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services)
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddSingleton<ISqlSugarClient>(sp =>
         {
@@ -51,14 +50,11 @@ public static class DependencyInjection
             });
         });
 
-        services.AddSingleton(_ => Channel.CreateUnbounded<object>());
-        services.AddSingleton<IEventPublisher, ChannelEventPublisher>();
-        services.AddScoped<IIntegrationEventHandler<Application.Events.OrderCreatedEvent>, OrderCreatedEventHandler>();
-        services.AddScoped<IIntegrationEventHandler<Application.Events.OrderCancelledEvent>, OrderCancelledEventHandler>();
-        services.AddHostedService<EventDispatcherBackgroundService>();
-        services.AddHostedService<OrderTimeoutBackgroundService>();
+        services.AddWatchShopMessaging(configuration);
+        services.AddWatchShopBackgroundJobs(configuration);
 
         services.AddSingleton<JwtTokenService>();
+        services.AddScoped<IRbacService, RbacService>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<DbInitializer>();
         services.AddScoped<CacheService>();
@@ -78,6 +74,8 @@ public static class DependencyInjection
         services.AddScoped<IOperationLogQueryService, OperationLogQueryService>();
         services.AddScoped<ICatalogCacheInvalidator, CatalogCacheInvalidator>();
         services.AddScoped<INotificationService, NotificationService>();
+        services.AddWatchShopSearch(configuration);
+        services.AddWatchShopStorage(configuration);
 
         return services;
     }
