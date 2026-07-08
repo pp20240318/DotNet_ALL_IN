@@ -16,12 +16,23 @@ public class OperationLogQueryService : IOperationLogQueryService
     }
 
     public async Task<PagedResult<OperationLogResponse>> GetPagedAsync(
-        int page, int pageSize, string? module = null, CancellationToken cancellationToken = default)
+        int page, int pageSize, string? module = null, DateTime? from = null, DateTime? to = null, CancellationToken cancellationToken = default)
     {
         var query = _db.Queryable<OperationLog>().Where(x => !x.IsDeleted);
         if (!string.IsNullOrWhiteSpace(module))
         {
             query = query.Where(x => x.Module == module);
+        }
+
+        if (from.HasValue)
+        {
+            query = query.Where(x => x.CreatedAt >= from.Value);
+        }
+
+        if (to.HasValue)
+        {
+            var end = to.Value.Date.AddDays(1);
+            query = query.Where(x => x.CreatedAt < end);
         }
 
         var total = await query.CountAsync();

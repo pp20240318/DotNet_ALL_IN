@@ -15,7 +15,7 @@ const cart = useCartStore()
 
 const loading = ref(false)
 const product = ref<CatalogProductDetail | null>(null)
-const selectedSkuId = ref<number | null>(null)
+const selectedSkuId = ref<number | undefined>(undefined)
 const quantity = ref(1)
 
 const selectedSku = computed(() => product.value?.skus?.find((s) => s.id === selectedSkuId.value) ?? null)
@@ -26,7 +26,7 @@ async function load() {
   loading.value = true
   try {
     product.value = await api.get<CatalogProductDetail>(`/catalog/products/${id}`)
-    selectedSkuId.value = product.value.skus?.[0]?.id ?? null
+    selectedSkuId.value = product.value.skus?.[0]?.id
   } catch (e) {
     ElMessage.error(getApiErrorMessage(e, '加载失败'))
   } finally {

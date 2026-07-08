@@ -9,6 +9,7 @@ public interface IOrderService
     Task<OrderDetailResponse?> GetByIdAsync(long id, CancellationToken cancellationToken = default);
     Task ShipAsync(long id, CancellationToken cancellationToken = default);
     Task CancelAsync(long id, CancellationToken cancellationToken = default);
+    Task RefundAsync(long id, CancellationToken cancellationToken = default);
     Task<long> CreateDemoOrderAsync(CancellationToken cancellationToken = default);
     Task<byte[]> ExportCsvAsync(OrderStatus? status = null, int maxRows = 5000, CancellationToken cancellationToken = default);
 }

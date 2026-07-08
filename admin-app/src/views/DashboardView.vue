@@ -55,6 +55,7 @@ const statusDistribution = computed(() => {
     OrderStatus.Shipped,
     OrderStatus.Completed,
     OrderStatus.Cancelled,
+    OrderStatus.Refunded,
   ].map((status) => ({
     status,
     label: orderStatusLabel(status),

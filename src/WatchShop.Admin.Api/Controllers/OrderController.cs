@@ -61,4 +61,12 @@ public class OrderController : ApiControllerBase
         await _mediator.Send(new CancelOrderCommand(id));
         return Success(true, "取消成功");
     }
+
+    [HttpPost("{id:long}/refund")]
+    [RequirePermission(AppPermissions.OrderWrite)]
+    public async Task<IActionResult> Refund(long id)
+    {
+        await _mediator.Send(new RefundOrderCommand(id));
+        return Success(true, "退款成功");
+    }
 }

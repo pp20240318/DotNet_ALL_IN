@@ -22,4 +22,12 @@ public class CustomerController : ApiControllerBase
         [FromQuery] int pageSize = 20,
         [FromQuery] string? keyword = null)
         => Success(await _mediator.Send(new GetCustomersPagedQuery(page, pageSize, keyword)));
+
+    [HttpPut("{customerId:long}")]
+    [RequirePermission(AppPermissions.CustomerWrite)]
+    public async Task<IActionResult> Update(long customerId, [FromBody] UpdateCustomerRequest request)
+    {
+        await _mediator.Send(new UpdateCustomerCommand(customerId, request));
+        return Success(true, "更新成功");
+    }
 }

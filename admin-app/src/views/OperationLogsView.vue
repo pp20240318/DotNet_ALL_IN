@@ -11,12 +11,15 @@ const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 const moduleFilter = ref('')
+const dateRange = ref<[string, string] | null>(null)
 
 async function load() {
   loading.value = true
   try {
     const params: Record<string, unknown> = { page: page.value, pageSize: pageSize.value }
     if (moduleFilter.value.trim()) params.module = moduleFilter.value.trim()
+    if (dateRange.value?.[0]) params.from = dateRange.value[0]
+    if (dateRange.value?.[1]) params.to = dateRange.value[1]
     const res = await api.get<PagedResult<OperationLog>>('/operation-logs', params)
     items.value = res.items ?? []
     total.value = res.total ?? 0
@@ -41,7 +44,17 @@ watch([page, pageSize], load, { immediate: true })
       <div class="toolbar">
         <span>操作日志</span>
         <div class="filters">
-          <el-input v-model="moduleFilter" placeholder="模块筛选" clearable style="width: 180px" @keyup.enter="onSearch" />
+          <el-input v-model="moduleFilter" placeholder="模块筛选" clearable style="width: 160px" @keyup.enter="onSearch" />
+          <el-date-picker
+            v-model="dateRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            value-format="YYYY-MM-DD"
+            style="width: 260px"
+            @change="onSearch"
+          />
           <el-button type="primary" size="small" @click="onSearch">查询</el-button>
         </div>
       </div>
@@ -90,6 +103,7 @@ watch([page, pageSize], load, { immediate: true })
 .filters {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 .pager {
   display: flex;

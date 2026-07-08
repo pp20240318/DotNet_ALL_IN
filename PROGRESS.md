@@ -1,6 +1,6 @@
 # WatchShop 生产化进度
 
-最后更新：2026-07-07（第二轮）
+最后更新：2026-07-08（P6 第三轮）
 
 ## 已完成
 
@@ -29,17 +29,27 @@
 - [x] 商品目录、详情、加购、结算、订单
 - [x] 用户注册页
 
-### P5 — 本轮新增
+### P5 — 客户与 ESLint
 - [x] 客户管理 API（`GET /customers` + `customer:read` 权限）
 - [x] admin-app 客户管理页 + 菜单/仪表盘入口
 - [x] store-app 注册页
 - [x] ESLint（admin-app + store-app）
 
+### P6 — 本轮新增
+- [x] 订单退款 API（`POST /orders/{id}/refund`）+ 取消已支付订单时恢复库存
+- [x] admin-app 退款按钮 + 已退款状态展示
+- [x] 客户启用/禁用写 API（`PUT /customers/{id}` + `customer:write`）
+- [x] admin-app 客户开关编辑
+- [x] 操作日志日期范围筛选（`from` / `to`）
+- [x] 根目录 Prettier 配置（`.prettierrc`）
+- [x] store-app Element Plus 按需加载（减小 bundle）
+- [x] 集成测试：客户更新、订单退款
+
 ## 验收状态
 
 | 项 | 状态 |
 |----|------|
-| `dotnet test WatchShop.slnx` | 24/24 通过 |
+| `dotnet test WatchShop.slnx` | 26/26 通过 |
 | `admin-app pnpm build` | 通过 |
 | `admin-app pnpm lint` | 通过 |
 | `store-app pnpm build` | 通过 |
@@ -48,9 +58,7 @@
 ## 待办 / 可选深化
 
 - [ ] Playwright E2E
-- [ ] Prettier 格式化
-- [ ] 订单退款 API + UI
-- [ ] 客户启用/禁用编辑（需后端写 API）
+- [ ] Prettier format 脚本接入 CI
 - [ ] Elasticsearch/Redis 全开环境联调
 
 ## 阻塞项

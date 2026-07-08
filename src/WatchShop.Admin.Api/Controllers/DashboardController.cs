@@ -31,8 +31,13 @@ public class OperationLogController : ApiControllerBase
 
     [HttpGet]
     [RequirePermission(AppPermissions.SystemAdmin)]
-    public async Task<IActionResult> GetPaged([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? module = null)
-        => Success(await _mediator.Send(new GetOperationLogsPagedQuery(page, pageSize, module)));
+    public async Task<IActionResult> GetPaged(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? module = null,
+        [FromQuery] DateTime? from = null,
+        [FromQuery] DateTime? to = null)
+        => Success(await _mediator.Send(new GetOperationLogsPagedQuery(page, pageSize, module, from, to)));
 }
 
 [Route("search")]

@@ -89,15 +89,71 @@ public class OrderService : IOrderService
         var order = await repo.GetByIdAsync(id, cancellationToken)
             ?? throw new BusinessException("订单不存在");
 
-        if (order.Status is OrderStatus.Shipped or OrderStatus.Completed or OrderStatus.Cancelled)
+        if (order.Status is OrderStatus.Shipped or OrderStatus.Completed or OrderStatus.Cancelled or OrderStatus.Refunded)
         {
             throw new BusinessException("当前状态不可取消");
         }
 
-        order.Status = OrderStatus.Cancelled;
-        order.CancelledAt = DateTime.UtcNow;
-        await repo.UpdateAsync(order, cancellationToken);
-        await _eventPublisher.PublishAsync(new OrderCancelledEvent(order.Id, order.OrderNo, "管理员取消"), cancellationToken);
+        await _unitOfWork.ExecuteInTransactionAsync(async () =>
+        {
+            if (order.Status == OrderStatus.Paid)
+            {
+                await RestoreStockAsync(id, cancellationToken);
+            }
+
+            order.Status = OrderStatus.Cancelled;
+            order.CancelledAt = DateTime.UtcNow;
+            await repo.UpdateAsync(order, cancellationToken);
+            await _eventPublisher.PublishAsync(new OrderCancelledEvent(order.Id, order.OrderNo, "管理员取消"), cancellationToken);
+        }, cancellationToken);
+    }
+
+    public async Task RefundAsync(long id, CancellationToken cancellationToken = default)
+    {
+        var repo = _unitOfWork.Repository<ShopOrder>();
+        var order = await repo.GetByIdAsync(id, cancellationToken)
+            ?? throw new BusinessException("订单不存在");
+
+        if (order.Status is not (OrderStatus.Paid or OrderStatus.Shipped))
+        {
+            throw new BusinessException("只有已支付或已发货订单才能退款");
+        }
+
+        await _unitOfWork.ExecuteInTransactionAsync(async () =>
+        {
+            await RestoreStockAsync(id, cancellationToken);
+
+            var refundedAt = DateTime.UtcNow;
+            var affected = await _db.Updateable<ShopOrder>()
+                .SetColumns(x => x.Status == OrderStatus.Refunded)
+                .SetColumns(x => x.RefundedAt == refundedAt)
+                .SetColumns(x => x.UpdatedAt == refundedAt)
+                .Where(x => x.Id == id)
+                .ExecuteCommandAsync();
+
+            if (affected == 0)
+            {
+                throw new BusinessException("退款失败");
+            }
+
+            await _eventPublisher.PublishAsync(new OrderCancelledEvent(order.Id, order.OrderNo, "管理员退款"), cancellationToken);
+        }, cancellationToken);
+    }
+
+    private async Task RestoreStockAsync(long orderId, CancellationToken cancellationToken)
+    {
+        var items = await _db.Queryable<OrderItem>()
+            .Where(x => x.OrderId == orderId && !x.IsDeleted)
+            .ToListAsync();
+
+        foreach (var item in items)
+        {
+            await _db.Updateable<ProductSku>()
+                .SetColumns(x => x.Stock == x.Stock + item.Quantity)
+                .SetColumns(x => x.UpdatedAt == DateTime.UtcNow)
+                .Where(x => x.Id == item.SkuId && !x.IsDeleted)
+                .ExecuteCommandAsync();
+        }
     }
 
     public async Task<long> CreateDemoOrderAsync(CancellationToken cancellationToken = default)

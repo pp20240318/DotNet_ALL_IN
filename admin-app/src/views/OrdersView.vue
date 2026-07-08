@@ -29,6 +29,7 @@ const statusOptions = [
   { value: OrderStatus.Shipped, label: orderStatusLabel(OrderStatus.Shipped) },
   { value: OrderStatus.Completed, label: orderStatusLabel(OrderStatus.Completed) },
   { value: OrderStatus.Cancelled, label: orderStatusLabel(OrderStatus.Cancelled) },
+  { value: OrderStatus.Refunded, label: orderStatusLabel(OrderStatus.Refunded) },
 ]
 
 async function load() {
@@ -94,6 +95,18 @@ async function cancel(row: OrderListItem) {
   }
 }
 
+async function refund(row: OrderListItem) {
+  try {
+    await ElMessageBox.confirm(`确认退款订单 ${row.orderNo}？库存将恢复。`, '确认退款', { type: 'warning' })
+    await api.post(`/orders/${row.id}/refund`)
+    ElMessage.success('退款成功')
+    await load()
+    if (detail.value?.id === row.id) await openDetail(row)
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error(getApiErrorMessage(e, '退款失败'))
+  }
+}
+
 async function createDemo() {
   try {
     await api.post('/orders/demo')
@@ -151,7 +164,7 @@ watch([page, pageSize], load, { immediate: !hasQuery() })
       <el-table-column label="创建时间" width="180">
         <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column label="操作" width="260" fixed="right">
         <template #default="{ row }">
           <el-button size="small" link type="primary" @click="openDetail(row as OrderListItem)">详情</el-button>
           <el-button
@@ -162,6 +175,15 @@ watch([page, pageSize], load, { immediate: !hasQuery() })
             @click="ship(row as OrderListItem)"
           >
             发货
+          </el-button>
+          <el-button
+            v-if="canWrite() && (row.status === OrderStatus.Paid || row.status === OrderStatus.Shipped)"
+            size="small"
+            link
+            type="warning"
+            @click="refund(row as OrderListItem)"
+          >
+            退款
           </el-button>
           <el-button
             v-if="canWrite() && (row.status === OrderStatus.PendingPayment || row.status === OrderStatus.Paid)"

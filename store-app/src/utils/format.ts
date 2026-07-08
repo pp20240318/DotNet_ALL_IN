@@ -15,23 +15,26 @@ const orderStatusLabels: Record<number, string> = {
   2: '已发货',
   3: '已完成',
   4: '已取消',
+  5: '已退款',
 }
 
 export function orderStatusLabel(status: number): string {
   return orderStatusLabels[status] ?? String(status)
 }
 
-export function orderStatusType(status: number): 'warning' | 'success' | 'info' | 'danger' | '' {
+export function orderStatusType(status: number): 'primary' | 'success' | 'warning' | 'info' | 'danger' | undefined {
   switch (status) {
     case 0:
       return 'warning'
     case 1:
       return 'success'
     case 2:
-      return ''
+      return 'primary'
     case 3:
       return 'info'
     case 4:
+      return 'danger'
+    case 5:
       return 'danger'
     default:
       return 'info'

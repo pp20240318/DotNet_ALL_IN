@@ -28,6 +28,11 @@ public class UnitOfWork : IUnitOfWork
 
     public async Task ExecuteInTransactionAsync(Func<Task> action, CancellationToken cancellationToken = default)
     {
-        await _db.Ado.UseTranAsync(async () => await action());
+        var result = await _db.Ado.UseTranAsync(async () => await action());
+        if (!result.IsSuccess)
+        {
+            throw result.ErrorException
+                ?? new InvalidOperationException(result.ErrorMessage ?? "Transaction failed");
+        }
     }
 }

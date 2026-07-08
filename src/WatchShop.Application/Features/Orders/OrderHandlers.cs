@@ -9,6 +9,7 @@ public record GetOrderByIdQuery(long Id) : IRequest<OrderDetailResponse?>;
 public record CreateDemoOrderCommand() : IRequest<long>;
 public record ShipOrderCommand(long Id) : IRequest;
 public record CancelOrderCommand(long Id) : IRequest;
+public record RefundOrderCommand(long Id) : IRequest;
 
 public class GetOrdersPagedQueryHandler(IOrderService service)
     : IRequestHandler<GetOrdersPagedQuery, PagedResult<OrderListResponse>>
@@ -43,4 +44,11 @@ public class CancelOrderCommandHandler(IOrderService service)
 {
     public Task Handle(CancelOrderCommand request, CancellationToken cancellationToken)
         => service.CancelAsync(request.Id, cancellationToken);
+}
+
+public class RefundOrderCommandHandler(IOrderService service)
+    : IRequestHandler<RefundOrderCommand>
+{
+    public Task Handle(RefundOrderCommand request, CancellationToken cancellationToken)
+        => service.RefundAsync(request.Id, cancellationToken);
 }

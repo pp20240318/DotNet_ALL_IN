@@ -14,6 +14,7 @@ const orderStatusLabels: Record<OrderStatus, string> = {
   [OrderStatus.Shipped]: '已发货',
   [OrderStatus.Completed]: '已完成',
   [OrderStatus.Cancelled]: '已取消',
+  [OrderStatus.Refunded]: '已退款',
 }
 
 const productStatusTypes: Record<ProductStatus, TagType> = {
@@ -28,6 +29,7 @@ const orderStatusTypes: Record<OrderStatus, TagType> = {
   [OrderStatus.Shipped]: 'primary',
   [OrderStatus.Completed]: 'success',
   [OrderStatus.Cancelled]: 'danger',
+  [OrderStatus.Refunded]: 'danger',
 }
 
 export function productStatusLabel(status: ProductStatus) {

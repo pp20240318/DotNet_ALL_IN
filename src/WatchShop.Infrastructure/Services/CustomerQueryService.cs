@@ -1,6 +1,7 @@
 using SqlSugar;
 using WatchShop.Application.Common;
 using WatchShop.Application.Features.Customers;
+using WatchShop.Application.Exceptions;
 using WatchShop.Domain.Entities;
 
 namespace WatchShop.Infrastructure.Services;
@@ -52,5 +53,20 @@ public class CustomerQueryService : ICustomerQueryService
                 CreatedAt = x.CreatedAt,
             }).ToList(),
         };
+    }
+
+    public async Task UpdateAsync(long customerId, UpdateCustomerRequest request, CancellationToken cancellationToken = default)
+    {
+        var exists = await _db.Queryable<Customer>()
+            .AnyAsync(x => x.Id == customerId && !x.IsDeleted, cancellationToken);
+        if (!exists)
+        {
+            throw new BusinessException("客户不存在");
+        }
+
+        await _db.Updateable<Customer>()
+            .SetColumns(x => x.IsEnabled == request.IsEnabled)
+            .Where(x => x.Id == customerId)
+            .ExecuteCommandAsync();
     }
 }

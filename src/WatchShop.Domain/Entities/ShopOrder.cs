@@ -25,11 +25,18 @@ public class ShopOrder : BaseEntity
     [SugarColumn(Length = 300, IsNullable = true)]
     public string? ReceiverAddress { get; set; }
 
+    [SugarColumn(IsNullable = true)]
     public DateTime? PaidAt { get; set; }
 
+    [SugarColumn(IsNullable = true)]
     public DateTime? ShippedAt { get; set; }
 
+    [SugarColumn(IsNullable = true)]
     public DateTime? CompletedAt { get; set; }
 
+    [SugarColumn(IsNullable = true)]
     public DateTime? CancelledAt { get; set; }
+
+    [SugarColumn(IsNullable = true)]
+    public DateTime? RefundedAt { get; set; }
 }

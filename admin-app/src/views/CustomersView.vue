@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { api, getApiErrorMessage } from '../utils/api'
+import { useAuthStore } from '../stores/auth'
 import { ElMessage } from 'element-plus'
 import type { Customer, PagedResult } from '../types/api'
 import { formatDateTime } from '../utils/format'
+
+const auth = useAuthStore()
+const canWrite = () => auth.hasPermission('customer:write')
 
 const loading = ref(false)
 const items = ref<Customer[]>([])
@@ -24,6 +28,18 @@ async function load() {
     ElMessage.error(getApiErrorMessage(e, '加载失败'))
   } finally {
     loading.value = false
+  }
+}
+
+async function toggleEnable(row: Customer, enabled: boolean) {
+  if (!canWrite()) return
+  try {
+    await api.put(`/customers/${row.id}`, { isEnabled: enabled })
+    row.isEnabled = enabled
+    ElMessage.success('已更新')
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '更新失败'))
+    await load()
   }
 }
 
@@ -59,9 +75,14 @@ watch([page, pageSize], load, { immediate: true })
       <el-table-column prop="nickname" label="昵称" width="120" />
       <el-table-column prop="phone" label="手机" width="130" />
       <el-table-column prop="email" label="邮箱" min-width="160" show-overflow-tooltip />
-      <el-table-column label="启用" width="80">
+      <el-table-column label="启用" width="100">
         <template #default="{ row }">
-          <el-tag :type="row.isEnabled ? 'success' : 'info'" size="small">{{ row.isEnabled ? '是' : '否' }}</el-tag>
+          <el-switch
+            v-if="canWrite()"
+            :model-value="row.isEnabled"
+            @change="(v) => toggleEnable(row as Customer, v === true)"
+          />
+          <el-tag v-else :type="row.isEnabled ? 'success' : 'info'" size="small">{{ row.isEnabled ? '是' : '否' }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column label="注册时间" width="180">

@@ -18,4 +18,6 @@ public interface ICustomerQueryService
         int pageSize,
         string? keyword = null,
         CancellationToken cancellationToken = default);
+
+    Task UpdateAsync(long customerId, UpdateCustomerRequest request, CancellationToken cancellationToken = default);
 }

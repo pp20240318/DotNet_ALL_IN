@@ -2,9 +2,15 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using SqlSugar;
+using WatchShop.Application.Abstractions;
 using WatchShop.Application.Common;
 using WatchShop.Application.Dtos.Auth;
+using WatchShop.Application.Features.Customers;
 using WatchShop.Application.Features.Rbac;
+using WatchShop.Domain.Entities;
+using WatchShop.Domain.Enums;
 
 namespace WatchShop.Tests;
 
@@ -176,6 +182,130 @@ public class AdminFeatureIntegrationTests : IClassFixture<WebApplicationFactory<
         var json = await response.Content.ReadAsStringAsync();
         Assert.Contains("\"code\":0", json);
         Assert.Contains("demo", json, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Admin_Can_Update_Customer_Enable_State()
+    {
+        var adminClient = await CreateAuthenticatedClientAsync("admin", "Admin@123");
+        var listResponse = await adminClient.GetAsync("/customers?page=1&pageSize=50");
+        var list = await listResponse.Content.ReadFromJsonAsync<ApiResult<PagedResult<CustomerAdminResponse>>>();
+        var demo = list?.Data?.Items.FirstOrDefault(x => x.Username == "demo");
+        Assert.NotNull(demo);
+
+        var updateResponse = await adminClient.PutAsJsonAsync($"/customers/{demo!.Id}", new { isEnabled = false });
+        updateResponse.EnsureSuccessStatusCode();
+
+        listResponse = await adminClient.GetAsync("/customers?page=1&pageSize=50");
+        list = await listResponse.Content.ReadFromJsonAsync<ApiResult<PagedResult<CustomerAdminResponse>>>();
+        var updated = list?.Data?.Items.FirstOrDefault(x => x.Id == demo.Id);
+        Assert.NotNull(updated);
+        Assert.False(updated!.IsEnabled);
+
+        await adminClient.PutAsJsonAsync($"/customers/{demo.Id}", new { isEnabled = true });
+    }
+
+    [Fact]
+    public async Task Admin_Can_Refund_Paid_Order()
+    {
+        long orderId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ISqlSugarClient>();
+            var orderService = scope.ServiceProvider.GetRequiredService<IOrderService>();
+            await EnsureCatalogSeedAsync(db);
+
+            orderId = await orderService.CreateDemoOrderAsync();
+            await db.Updateable<ShopOrder>()
+                .SetColumns(x => x.Status == OrderStatus.Paid)
+                .SetColumns(x => x.PaidAt == DateTime.UtcNow)
+                .Where(x => x.Id == orderId)
+                .ExecuteCommandAsync();
+        }
+
+        var adminClient = await CreateAuthenticatedClientAsync("admin", "Admin@123");
+        var refundResponse = await adminClient.PostAsync($"/orders/{orderId}/refund", null);
+        refundResponse.EnsureSuccessStatusCode();
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ISqlSugarClient>();
+            var after = await db.Queryable<ShopOrder>().InSingleAsync(orderId);
+            Assert.Equal(OrderStatus.Refunded, after!.Status);
+            Assert.NotNull(after.RefundedAt);
+        }
+
+        var detailResponse = await adminClient.GetAsync($"/orders/{orderId}");
+        detailResponse.EnsureSuccessStatusCode();
+        var detail = await detailResponse.Content.ReadFromJsonAsync<ApiResult<OrderDetailResponse>>();
+        Assert.Equal(OrderStatus.Refunded, detail?.Data?.Status);
+    }
+
+    private static async Task EnsureCatalogSeedAsync(ISqlSugarClient db)
+    {
+        if (await db.Queryable<ProductSku>().Where(x => !x.IsDeleted).AnyAsync())
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        var brandId = SnowFlakeSingle.Instance.NextId();
+        await db.Insertable(new Brand
+        {
+            Id = brandId,
+            Name = "TestBrand",
+            Description = "test",
+            SortOrder = 1,
+            IsEnabled = true,
+            IsDeleted = false,
+            Version = 0,
+            CreatedAt = now,
+            UpdatedAt = now,
+        }).ExecuteCommandAsync();
+
+        var categoryId = SnowFlakeSingle.Instance.NextId();
+        await db.Insertable(new Category
+        {
+            Id = categoryId,
+            Name = "TestCategory",
+            SortOrder = 1,
+            IsEnabled = true,
+            IsDeleted = false,
+            Version = 0,
+            CreatedAt = now,
+            UpdatedAt = now,
+        }).ExecuteCommandAsync();
+
+        var productId = SnowFlakeSingle.Instance.NextId();
+        await db.Insertable(new Product
+        {
+            Id = productId,
+            Name = "Refund Test Product",
+            BrandId = brandId,
+            CategoryId = categoryId,
+            Description = "test",
+            Price = 100m,
+            Status = ProductStatus.OnSale,
+            IsDeleted = false,
+            Version = 0,
+            CreatedAt = now,
+            UpdatedAt = now,
+        }).ExecuteCommandAsync();
+
+        await db.Insertable(new ProductSku
+        {
+            Id = SnowFlakeSingle.Instance.NextId(),
+            ProductId = productId,
+            SkuCode = "REF-001",
+            SpecJson = "{}",
+            Price = 100m,
+            Stock = 10,
+            IsEnabled = true,
+            IsDeleted = false,
+            Version = 0,
+            CreatedAt = now,
+            UpdatedAt = now,
+        }).ExecuteCommandAsync();
     }
 
     private async Task<HttpClient> CreateAuthenticatedClientAsync(string username, string password)

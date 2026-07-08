@@ -47,11 +47,38 @@ public class DbInitializer
             typeof(Notification),
             typeof(AdminRefreshToken));
 
+        MigrateShopOrderSchema();
+
         SeedRoles();
         SeedAdminUser();
         SeedDemoAdmins();
         SeedCustomerUser();
         SeedCatalogData();
+    }
+
+    private void MigrateShopOrderSchema()
+    {
+        try
+        {
+            if (!_db.DbMaintenance.IsAnyColumn("shop_order", "RefundedAt"))
+            {
+                _db.Ado.ExecuteCommand("ALTER TABLE shop_order ADD COLUMN RefundedAt DATETIME NULL");
+            }
+
+            _db.Ado.ExecuteCommand("""
+                ALTER TABLE shop_order
+                  MODIFY COLUMN Status INT NOT NULL,
+                  MODIFY COLUMN PaidAt DATETIME NULL,
+                  MODIFY COLUMN ShippedAt DATETIME NULL,
+                  MODIFY COLUMN CompletedAt DATETIME NULL,
+                  MODIFY COLUMN CancelledAt DATETIME NULL,
+                  MODIFY COLUMN RefundedAt DATETIME NULL
+                """);
+        }
+        catch
+        {
+            // 忽略旧库迁移失败，避免阻塞启动
+        }
     }
 
     private void SeedRoles()
